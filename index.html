@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>姑姑生日快乐</title>
+    <style>
+        body {
+            background-color: blue;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #message {
+            font-size: 30px; /* 增大字体大小，你可以根据需求调整这个值 */
+            text-align: center;
+            position: relative;
+            z-index: 2;
+            opacity: 0;
+            animation: fadeIn 3s ease-in-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="message">
+        姑姑，生日快乐！<br> 蛇年行大运，幸福又安康！
+    </div>
+    <canvas id="fireworks"></canvas>
+    <script>
+        // 烟花粒子类
+        class Particle {
+            constructor(x, y, hue, life) {
+                this.x = x;
+                this.y = y;
+                this.hue = hue;
+                this.life = life;
+                this.alpha = 1;
+                // 减小粒子的水平速度，让其移动更缓慢
+                this.vx = (Math.random() - 0.5) * 3; 
+                // 减小粒子的垂直速度
+                this.vy = Math.random() * -3; 
+                // 减小粒子的重力，使其下落更缓慢
+                this.gravity = 0.1; 
+                this.size = Math.random() * 3 + 1;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.life--;
+                this.alpha = Math.max(0, this.life / 100);
+                if (this.life <= 0) {
+                    return true;
+                }
+                return false;
+            }
+            draw(ctx) {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
+                ctx.fillStyle = `hsla(${this.hue}, 100%, 50%, ${this.alpha})`;
+                ctx.fill();
+            }
+        }
+        // 烟花类
+        class Firework {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.hue = Math.random() * 360;
+                this.particles = [];
+                this.exploded = false;
+                // 减小烟花的水平速度
+                this.vx = (Math.random() - 0.5) * 1; 
+                // 减小烟花的垂直速度
+                this.vy = Math.random() * -10; 
+                // 减小烟花的重力
+                this.gravity = 0.1; 
+                this.size = Math.random() * 3 + 2;
+            }
+            update() {
+                if (!this.exploded) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vy += this.gravity;
+                    if (this.vy >= 0) {
+                        this.explode();
+                    }
+                } else {
+                    for (let i = this.particles.length - 1; i >= 0; i--) {
+                        if (this.particles[i].update()) {
+                            this.particles.splice(i, 1);
+                        }
+                    }
+                }
+                if (this.particles.length === 0 && this.exploded) {
+                    return true;
+                }
+                return false;
+            }
+            explode() {
+                this.exploded = true;
+                for (let i = 0; i < 100; i++) {
+                    this.particles.push(new Particle(this.x, this.y, this.hue, 100));
+                }
+            }
+            draw(ctx) {
+                if (!this.exploded) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
+                    ctx.fillStyle = `hsl(${this.hue}, 100%, 50%)`;
+                    ctx.fill();
+                } else {
+                    for (let particle of this.particles) {
+                        particle.draw(ctx);
+                    }
+                }
+            }
+        }
+        // 初始化画布
+        const canvas = document.getElementById('fireworks');
+        const ctx = canvas.getContext('2d');
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        let fireworks = [];
+        function createFirework() {
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * (canvas.height * 0.3);
+            fireworks.push(new Firework(x, y));
+        }
+        function animate() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                if (fireworks[i].update()) {
+                    fireworks.splice(i, 1);
+                } else {
+                    fireworks[i].draw(ctx);
+                }
+            }
+            // 降低新烟花生成的概率
+            if (Math.random() < 0.03) { 
+                createFirework();
+            }
+            requestAnimationFrame(animate);
+        }
+        window.addEventListener('load', function () {
+            const message = document.getElementById('message');
+            message.style.opacity = 1;
+            setTimeout(() => {
+                message.style.animation = 'fadeIn 3s ease-in-out forwards';
+            }, 100);
+        });
+        animate();
+    </script>
+</body>
+
+</html>
