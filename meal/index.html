@@ -16,6 +16,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
 .header-btns{display:flex;gap:8px}
 .btn-add{background:rgba(255,255,255,0.25);border:2px solid rgba(255,255,255,0.5);color:white;border-radius:50%;width:40px;height:40px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;backdrop-filter:blur(4px)}
 .btn-add:hover{background:rgba(255,255,255,0.4);transform:scale(1.1)}
+.sync-badge{font-size:11px;color:rgba(255,255,255,0.85);padding:3px 8px;border-radius:8px;background:rgba(255,255,255,0.15);cursor:pointer;transition:all 0.2s;white-space:nowrap;backdrop-filter:blur(4px)}
+.sync-badge:active{opacity:.6}
+.sync-badge.syncing{color:#fff}
+.sync-badge.error{color:#FFD0D0}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.sync-spinning{display:inline-block;animation:spin 1s linear infinite}
 .tabs{display:flex;gap:0}
 .tab{flex:1;padding:10px 0;text-align:center;cursor:pointer;font-size:15px;font-weight:600;border-bottom:3px solid transparent;transition:all 0.25s;opacity:0.7}
 .tab.active{opacity:1;border-bottom-color:white}
@@ -202,7 +208,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
     <h1>漂亮饭清单 <span>🍜</span></h1>
     <div class="header-btns">
       <button class="btn-add" onclick="openCalendarModal()" title="美食日历" style="font-size:18px;">📅</button>
-      <button class="btn-add" onclick="openSettingsModal()" title="导入导出" style="font-size:18px;">⚙️</button>
+      <span class="sync-badge" id="syncBadge" onclick="manualSync()" title="点击手动同步"></span>
+      <button class="btn-add" onclick="openSettingsModal()" title="导入导出与同步" style="font-size:18px;">⚙️</button>
       <button class="btn-add" onclick="openRouletteModal()" title="随机抽选" style="font-size:18px;">🎲</button>
       <button class="btn-add" onclick="openAddModal()" title="添加新餐厅">＋</button>
     </div>
@@ -322,6 +329,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Micr
   <div class="modal">
     <div class="modal-handle"></div>
     <h2>数据管理</h2>
+    <div style="padding:6px 0 10px;border-bottom:1px solid var(--border);margin-bottom:12px;">
+      <div style="font-weight:600;font-size:15px;margin-bottom:6px;">🔗 GitHub 云同步</div>
+      <div style="font-size:12px;color:var(--text-light);line-height:1.6;margin-bottom:10px;">配置后数据自动同步到 GitHub 私人仓库，多设备间无缝切换。</div>
+      <div id="ghTutorialWrap" style="margin-bottom:10px">
+        <div onclick="toggleGhTutorial()" style="font-size:12px;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:4px;user-select:none">
+          <span id="ghTutorialArrow">▶</span> 设置方法（点击查看）
+        </div>
+        <div id="ghTutorialContent" style="display:none;font-size:12px;color:var(--text-light);background:#FFF8F0;border-radius:10px;padding:10px 12px;margin-top:8px;line-height:1.7">
+          1. 打开 <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color:var(--primary)">GitHub → Developer settings → Fine-grained tokens</a><br>
+          2. 点「Generate new token」，取个名字（如 meal-sync）<br>
+          3. Repository access 选「Only select repositories」→ 选 <b>gadgetry</b> 仓库<br>
+          4. Permissions → Repository permissions → <b>Contents</b> 设为 <b>Read and write</b><br>
+          5. 生成后复制 token（以 <code>github_pat_</code> 开头），填到下面<br>
+          6. 仓库名填 <b>gadgetry</b>，数据会存在 <b>data/meal.json</b>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:8px"><label>GitHub Token</label><input type="password" id="ghTokenInput" placeholder="github_pat_xxxx..." style="font-size:13px"></div>
+      <div class="form-group" style="margin-bottom:8px"><label>仓库名称</label><input type="text" id="ghRepoInput" placeholder="如：gadgetry" style="font-size:13px"></div>
+      <button class="btn btn-primary" onclick="initGitHub()" id="ghInitBtn" style="width:100%;margin-bottom:6px">🔗 连接并初始化</button>
+      <div id="ghStatus" style="font-size:13px;text-align:center;min-height:20px"></div>
+    </div>
     <div style="padding:0 0 8px;color:var(--text-light);font-size:13px;text-align:center;">导出备份你的清单，或从备份文件恢复</div>
     <div class="form-group"><label>🎁 打包分享</label><button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="sharePackage()">生成带数据的HTML文件</button><div style="font-size:12px;color:var(--text-light);margin-top:4px;">把你的清单和数据打包成一个文件，发给朋友直接看</div></div>
     <div style="text-align:center;color:#ccc;font-size:13px;margin:8px 0;">— 或 —</div>
@@ -471,7 +499,7 @@ async function saveEntry(ev){
   var existing=editingId?await getEntry(editingId):null;var status=existing?existing.status:'want';
   var visitDate=document.getElementById('entryVisitDate').value;var visitNote=document.getElementById('entryVisitNote').value.trim();
   var entry={id:id,name:name,food:food,tags:selectedTags.slice(),price:price,links:links,status:status,coverImages:coverImageData,visitPhotos:visitImageData,visitDate:visitDate,visitNote:visitNote,memories:existing?(existing.memories||[]):[],createdAt:existing?existing.createdAt:Date.now(),updatedAt:Date.now()};
-  await putEntry(entry);closeModal('editModal');renderList();updateCounts();showToast(editingId?'已更新 ✏️':'已添加 🍜');
+  await putEntry(entry);closeModal('editModal');renderList();updateCounts();showToast(editingId?'已更新 ✏️':'已添加 🍜');scheduleAutoSync();
 }
 
 /* === 详情 === */
@@ -497,9 +525,9 @@ async function openDetail(id){
   document.getElementById('detailModal').classList.add('active');
 }
 
-async function markAsBeen(id){var e=await getEntry(id);if(!e)return;e.status='been';e.updatedAt=Date.now();if(!e.visitDate)e.visitDate=todayStr();await putEntry(e);closeModal('detailModal');currentTab='been';document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab==='been');});renderList();updateCounts();showToast('已打卡！🎉');}
-async function markAsWant(id){var e=await getEntry(id);if(!e)return;e.status='want';e.updatedAt=Date.now();await putEntry(e);closeModal('detailModal');currentTab='want';document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab==='want');});renderList();updateCounts();showToast('已移回想去 🤤');}
-async function confirmDelete(id){if(!confirm('确定要删除这个餐厅吗？删除后无法恢复。'))return;await deleteEntry(id);closeModal('detailModal');renderList();updateCounts();showToast('已删除 🗑️');}
+async function markAsBeen(id){var e=await getEntry(id);if(!e)return;e.status='been';e.updatedAt=Date.now();if(!e.visitDate)e.visitDate=todayStr();await putEntry(e);closeModal('detailModal');currentTab='been';document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab==='been');});renderList();updateCounts();showToast('已打卡！🎉');scheduleAutoSync();}
+async function markAsWant(id){var e=await getEntry(id);if(!e)return;e.status='want';e.updatedAt=Date.now();await putEntry(e);closeModal('detailModal');currentTab='want';document.querySelectorAll('.tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab==='want');});renderList();updateCounts();showToast('已移回想去 🤤');scheduleAutoSync();}
+async function confirmDelete(id){if(!confirm('确定要删除这个餐厅吗？删除后无法恢复。'))return;await deleteEntry(id);closeModal('detailModal');renderList();updateCounts();showToast('已删除 🗑️');scheduleAutoSync();}
 async function updateCounts(){var entries=await getAllEntries();document.getElementById('wantCount').textContent=entries.filter(function(e){return e.status==='want';}).length;document.getElementById('beenCount').textContent=entries.filter(function(e){return e.status==='been';}).length;}
 
 /* === 美好记忆 === */
@@ -513,13 +541,13 @@ async function saveMemory(){
   if(!e.memories)e.memories=[];
   e.memories.push({id:Date.now().toString(36)+Math.random().toString(36).substr(2,5),date:date,note:note,photos:memoryPhotoData.slice()});
   e.updatedAt=Date.now();await putEntry(e);
-  closeModal('memoryModal');openDetail(memoryTargetId);showToast('记忆已保存 🌸');
+  closeModal('memoryModal');openDetail(memoryTargetId);showToast('记忆已保存 🌸');scheduleAutoSync();
 }
 async function deleteMemory(entryId,memIdx){
   if(!confirm('确定删除这条记忆吗？'))return;
   var e=await getEntry(entryId);if(!e||!e.memories)return;
   e.memories.splice(memIdx,1);e.updatedAt=Date.now();await putEntry(e);
-  openDetail(entryId);showToast('记忆已删除');
+  openDetail(entryId);showToast('记忆已删除');scheduleAutoSync();
 }
 
 /* === 日历 === */
@@ -592,7 +620,7 @@ function escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
 function formatDate(ts){if(!ts)return'';var d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function todayStr(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function showToast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(function(){t.classList.remove('show');},2000);}
-function openSettingsModal(){document.getElementById('importResult').style.display='none';document.getElementById('importInput').value='';document.getElementById('settingsModal').classList.add('active');}
+function openSettingsModal(){document.getElementById('importResult').style.display='none';document.getElementById('importInput').value='';renderGhSettings();document.getElementById('settingsModal').classList.add('active');}
 
 /* === 打包分享 === */
 async function sharePackage(){
@@ -657,7 +685,180 @@ async function spinRoulette(){
 document.addEventListener('click',function(e){if(tagDropdownOpen&&!document.getElementById('tagSelector').contains(e.target)){closeTagDropdown();}document.querySelectorAll('.source-dropdown.open').forEach(function(dd){if(!dd.parentElement.contains(e.target)){dd.classList.remove('open');}});});
 document.querySelectorAll('.modal-overlay').forEach(function(overlay){overlay.addEventListener('click',function(e){if(e.target===overlay)closeModal(overlay.id);});});
 
+/* ===== GitHub Sync ===== */
+var GH_CONFIG_KEY='meal_gh_config';
+var ghConfig={token:'',repo:'',owner:''};
+var ghSha=null;
+var lastSyncTime=0;
+var syncInProgress=false;
+var syncTimer=null;
+
+function pad(n){return n<10?'0'+n:''+n;}
+
+function loadGhConfig(){
+  try{var raw=localStorage.getItem(GH_CONFIG_KEY);if(raw)ghConfig=JSON.parse(raw);}catch(e){}
+}
+function saveGhConfig(){localStorage.setItem(GH_CONFIG_KEY,JSON.stringify(ghConfig));}
+function isGhConfigured(){return ghConfig.token&&ghConfig.repo&&ghConfig.owner;}
+
+function updateSyncBadge(status,text){
+  var badge=document.getElementById('syncBadge');
+  if(!badge)return;
+  badge.className='sync-badge';
+  if(status==='syncing'){badge.classList.add('syncing');badge.innerHTML='<span class="sync-spinning">\uD83D\uDD04</span> 同步中';}
+  else if(status==='error'){badge.classList.add('error');badge.textContent='⚠️ 同步失败';}
+  else if(status==='ok'){badge.textContent=text||'✅ 已同步';setTimeout(function(){updateSyncTime();},3000);}
+  else if(status==='off'){badge.textContent='🔌 未连接';badge.style.display='none';}
+  else{badge.textContent=text||'';}
+}
+
+function updateSyncTime(){
+  var badge=document.getElementById('syncBadge');
+  if(!badge||!isGhConfigured())return;
+  badge.style.display='';
+  if(lastSyncTime){var d=new Date(lastSyncTime);badge.textContent='\uD83D\uDD04 '+pad(d.getHours())+':'+pad(d.getMinutes());}
+  else{badge.textContent='\uD83D\uDD04 未同步';}
+}
+
+function toggleGhTutorial(){
+  var c=document.getElementById('ghTutorialContent');
+  var a=document.getElementById('ghTutorialArrow');
+  var vis=c.style.display==='none';
+  c.style.display=vis?'block':'none';
+  a.textContent=vis?'▼':'▶';
+}
+
+async function ghFetchWithProxy(url,options){
+  try{var res=await fetch(url,options);return res;}
+  catch(e){var proxyUrl='https://corsproxy.io/?'+encodeURIComponent(url);return await fetch(proxyUrl,options);}
+}
+
+async function ghFetchFile(){
+  var token=ghConfig.token,owner=ghConfig.owner,repo=ghConfig.repo;
+  var res=await ghFetchWithProxy('https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/meal.json',{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}});
+  if(res.status===404)return null;
+  if(!res.ok)throw new Error('GitHub API error: '+res.status);
+  return await res.json();
+}
+
+async function ghWriteFile(content,sha){
+  var token=ghConfig.token,owner=ghConfig.owner,repo=ghConfig.repo;
+  var body={message:'sync meal '+new Date().toISOString(),content:btoa(unescape(encodeURIComponent(JSON.stringify(content))))};
+  if(sha)body.sha=sha;
+  var res=await ghFetchWithProxy('https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/meal.json',{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!res.ok){var errText=await res.text();throw new Error('Write failed: '+res.status+' - '+errText);}
+  var result=await res.json();
+  ghSha=result.content.sha;
+  return result;
+}
+
+async function pushToGitHub(){
+  var entries=await getAllEntries();
+  var data={app:'漂亮饭清单',version:2,entries:entries,customTags:getCustomTags(),lastModified:Date.now(),syncedAt:new Date().toISOString()};
+  var result=await ghWriteFile(data,ghSha);
+  lastSyncTime=Date.now();
+  return result;
+}
+
+async function pullFromGitHub(){
+  var fileData=await ghFetchFile();
+  if(!fileData)return 0;
+  ghSha=fileData.sha;
+  var json=decodeURIComponent(escape(atob(fileData.content)));
+  var remote=JSON.parse(json);
+  var remoteEntries=remote.entries||[];
+  if(remote.customTags&&Array.isArray(remote.customTags)){remote.customTags.forEach(function(t){addCustomTag(t);});}
+  var existing=await getAllEntries();
+  var localMap={};
+  existing.forEach(function(e){localMap[e.id]=e;});
+  var newCount=0;
+  for(var i=0;i<remoteEntries.length;i++){
+    var re=remoteEntries[i];
+    var le=localMap[re.id];
+    if(!le){await putEntry(re);newCount++;}
+    else{var rTime=re.updatedAt||re.createdAt||0;var lTime=le.updatedAt||le.createdAt||0;if(rTime>lTime){await putEntry(re);}}
+  }
+  lastSyncTime=Date.now();
+  return newCount;
+}
+
+async function autoSync(){
+  if(!isGhConfigured()||syncInProgress)return;
+  syncInProgress=true;
+  updateSyncBadge('syncing');
+  try{await pullFromGitHub();await pushToGitHub();updateSyncTime();}
+  catch(e){console.error('Sync error:',e);updateSyncBadge('error');}
+  syncInProgress=false;
+}
+
+function scheduleAutoSync(){
+  if(!isGhConfigured())return;
+  if(syncTimer)clearTimeout(syncTimer);
+  syncTimer=setTimeout(function(){autoSync().then(function(){renderList();updateCounts();});},2000);
+}
+
+async function manualSync(){
+  if(!isGhConfigured()){openSettingsModal();showToast('请先配置 GitHub 同步');return;}
+  await autoSync();
+  renderList();updateCounts();
+  showToast('✅ 同步完成');
+}
+
+async function initGitHub(){
+  var token=document.getElementById('ghTokenInput').value.trim();
+  var repo=document.getElementById('ghRepoInput').value.trim();
+  var btn=document.getElementById('ghInitBtn');
+  var status=document.getElementById('ghStatus');
+  if(!token){showToast('请输入 GitHub Token');return;}
+  if(!repo){showToast('请输入仓库名称');return;}
+  var cleanToken=token.replace(/\s+/g,'').trim();
+  if(cleanToken.length<20){showToast('Token 格式不对，请检查是否完整复制');return;}
+  btn.textContent='⏳ 连接中...';btn.disabled=true;status.textContent='';status.style.color='';
+  try{
+    status.textContent='🔍 获取 GitHub 用户信息...';
+    ghConfig={token:cleanToken,repo:repo,owner:''};
+    var res=await ghFetchWithProxy('https://api.github.com/user',{headers:{'Authorization':'token '+cleanToken,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}});
+    if(!res.ok){var detail='';try{var err=await res.json();detail=err.message||'';}catch(e){}throw new Error('GitHub 认证失败 ('+res.status+')'+(detail?': '+detail:''));}
+    var userData=await res.json();
+    ghConfig.owner=userData.login;
+    status.textContent='🔄 检查云端数据...';
+    try{
+      var newCount=await pullFromGitHub();
+      if(newCount>0){status.textContent='✅ 已连接！从云端同步了 '+newCount+' 条新记录';}
+      else{status.textContent='✅ 已连接！将上传当前数据';await pushToGitHub();}
+    }catch(e){
+      status.textContent='📤 初始化云端数据...';
+      await pushToGitHub();
+      status.textContent='✅ 已连接并初始化完成！';
+    }
+    saveGhConfig();updateSyncTime();renderList();updateCounts();
+    showToast('✅ GitHub 同步已开启！');
+  }catch(e){
+    console.error('GitHub init error:',e);
+    status.textContent='❌ 连接失败：'+e.message;status.style.color='#E74C3C';
+  }
+  btn.textContent='🔗 连接并初始化';btn.disabled=false;
+}
+
+function renderGhSettings(){
+  loadGhConfig();
+  if(isGhConfigured()){
+    document.getElementById('ghTokenInput').value=ghConfig.token;
+    document.getElementById('ghRepoInput').value=ghConfig.repo;
+    document.getElementById('ghStatus').textContent='✅ 已连接：'+ghConfig.owner+'/'+ghConfig.repo;
+    document.getElementById('ghStatus').style.color='#27AE60';
+    document.getElementById('ghInitBtn').textContent='🔄 重新连接';
+  }
+}
+
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&isGhConfigured()){autoSync().then(function(){renderList();updateCounts();});}});
+setInterval(function(){if(isGhConfigured()&&document.visibilityState==='visible'){autoSync().then(function(){renderList();updateCounts();});}},60000);
+
+loadGhConfig();
 init();
+renderGhSettings();
+if(isGhConfigured()){updateSyncTime();autoSync().then(function(){renderList();updateCounts();});}
+else{updateSyncBadge('off');}
 </script>
 </body>
 </html>
