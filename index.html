@@ -1589,7 +1589,9 @@ async function initGitHub() {
       } else if (state.events.length === 0) {
         status.textContent = '✅ 已连接！云端和本地都没有数据';
       } else {
-        status.textContent = '✅ 已连接！数据已同步';
+        status.textContent = '📤 上传本地数据到云端...';
+        await pushToGitHub();
+        status.textContent = '✅ 已连接！本地数据已上传到云端';
       }
     } catch(e) {
       // File doesn't exist yet, push initial data only if local has data
