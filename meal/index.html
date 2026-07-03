@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>漂亮饭清单 🍜</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #FF6B35;
+  --primary-light: #FF8F5E;
+  --primary-dark: #E55A2B;
+  --bg: #FFF8F0;
+  --card: #FFFFFF;
+  --text: #2D2D2D;
+  --text-light: #888;
+  --border: #F0E6DD;
+  --green: #4CAF50;
+  --green-light: #E8F5E9;
+  --shadow: 0 2px 12px rgba(255,107,53,0.1);
+  --shadow-lg: 0 8px 30px rgba(255,107,53,0.15);
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+/* Header */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  padding: 16px 20px 0;
+  color: white;
+}
+.header-top {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px;
+}
+.header h1 { font-size: 22px; font-weight: 700; letter-spacing: 1px; }
+.header h1 span { font-size: 24px; }
+.btn-add {
+  background: rgba(255,255,255,0.25); border: 2px solid rgba(255,255,255,0.5);
+  color: white; border-radius: 50%; width: 40px; height: 40px;
+  font-size: 22px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
+}
+.btn-add:hover { background: rgba(255,255,255,0.4); transform: scale(1.1); }
+
+/* Tabs */
+.tabs {
+  display: flex; gap: 0;
+}
+.tab {
+  flex: 1; padding: 10px 0; text-align: center;
+  cursor: pointer; font-size: 15px; font-weight: 600;
+  border-bottom: 3px solid transparent;
+  transition: all 0.25s; opacity: 0.7;
+}
+.tab.active { opacity: 1; border-bottom-color: white; }
+.tab-badge {
+  display: inline-block; background: rgba(255,255,255,0.3);
+  border-radius: 10px; padding: 1px 8px; font-size: 12px;
+  margin-left: 4px; font-weight: 500;
+}
+.tab.active .tab-badge { background: rgba(255,255,255,0.4); }
+
+/* Content */
+.content { padding: 16px; padding-bottom: 80px; }
+.empty-state {
+  text-align: center; padding: 60px 20px; color: var(--text-light);
+}
+.empty-state .empty-icon { font-size: 64px; margin-bottom: 16px; }
+.empty-state p { font-size: 15px; line-height: 1.6; }
+
+/* Cards */
+.card-list { display: flex; flex-direction: column; gap: 14px; }
+.card {
+  background: var(--card); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.card-images {
+  position: relative; height: 180px; overflow: hidden;
+  background: linear-gradient(135deg, #ffe8d6, #fff0e5);
+}
+.card-images img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.img-counter {
+  position: absolute; bottom: 8px; right: 8px;
+  background: rgba(0,0,0,0.5); color: white;
+  border-radius: 12px; padding: 2px 10px; font-size: 12px;
+}
+.card-body { padding: 14px 16px; }
+.card-name {
+  font-size: 17px; font-weight: 700; margin-bottom: 4px;
+  display: flex; align-items: center; gap: 6px;
+}
+.card-food { font-size: 14px; color: var(--text-light); margin-bottom: 8px; line-height: 1.5; }
+.card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.tag {
+  background: #FFF0E5; color: var(--primary);
+  border-radius: 12px; padding: 2px 10px; font-size: 12px; font-weight: 500;
+}
+.tag-green { background: var(--green-light); color: var(--green); }
+.card-links {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.card-link {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #F5F5F5; border-radius: 8px; padding: 4px 10px;
+  font-size: 12px; color: var(--text-light); text-decoration: none;
+  transition: background 0.2s;
+}
+.card-link:hover { background: #E8E8E8; color: var(--primary); }
+.card-link svg { width: 14px; height: 14px; }
+.card-date { font-size: 12px; color: #bbb; margin-top: 8px; }
+.card-visit-info {
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text-light);
+}
+.card-visit-info strong { color: var(--green); }
+
+/* Modal */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+  z-index: 200; display: none; align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(4px);
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: white; border-radius: 20px 20px 0 0;
+  width: 100%; max-width: 500px; max-height: 90vh;
+  overflow-y: auto; padding: 20px;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.modal-handle {
+  width: 40px; height: 4px; background: #ddd; border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.modal h2 { font-size: 18px; margin-bottom: 16px; text-align: center; }
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block; font-size: 13px; font-weight: 600;
+  color: var(--text-light); margin-bottom: 6px;
+}
+.form-group input, .form-group textarea, .form-group select {
+  width: 100%; padding: 10px 14px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 15px;
+  font-family: inherit; transition: border-color 0.2s;
+  background: #FAFAFA;
+}
+.form-group input:focus, .form-group textarea:focus {
+  outline: none; border-color: var(--primary); background: white;
+}
+.form-group textarea { resize: vertical; min-height: 70px; }
+
+/* Image upload area */
+.upload-area {
+  border: 2px dashed var(--border); border-radius: var(--radius-sm);
+  padding: 20px; text-align: center; cursor: pointer;
+  transition: all 0.2s; background: #FAFAFA;
+}
+.upload-area:hover { border-color: var(--primary); background: #FFF8F0; }
+.upload-area .upload-icon { font-size: 28px; margin-bottom: 4px; }
+.upload-area p { font-size: 13px; color: var(--text-light); }
+.preview-images {
+  display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;
+}
+.preview-img {
+  position: relative; width: 72px; height: 72px; border-radius: 8px; overflow: hidden;
+}
+.preview-img img { width: 100%; height: 100%; object-fit: cover; }
+.preview-img .remove-img {
+  position: absolute; top: 2px; right: 2px;
+  background: rgba(0,0,0,0.5); color: white;
+  border: none; border-radius: 50%; width: 18px; height: 18px;
+  font-size: 12px; cursor: pointer; display: flex;
+  align-items: center; justify-content: center;
+}
+
+/* Link input */
+.link-item {
+  display: flex; gap: 8px; margin-bottom: 8px; align-items: center;
+}
+.link-item input { flex: 1; }
+.link-item .btn-remove-link {
+  background: none; border: none; color: #ccc; font-size: 18px;
+  cursor: pointer; padding: 4px;
+}
+.btn-add-link {
+  background: none; border: 1.5px dashed var(--border);
+  border-radius: var(--radius-sm); padding: 8px; width: 100%;
+  color: var(--text-light); cursor: pointer; font-size: 13px;
+  transition: all 0.2s;
+}
+.btn-add-link:hover { border-color: var(--primary); color: var(--primary); }
+
+/* Modal buttons */
+.modal-actions {
+  display: flex; gap: 10px; margin-top: 20px;
+}
+.btn {
+  flex: 1; padding: 12px; border: none; border-radius: var(--radius-sm);
+  font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+  font-family: inherit;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-secondary { background: #F0F0F0; color: var(--text); }
+.btn-secondary:hover { background: #E0E0E0; }
+.btn-danger { background: #FFE5E5; color: #E53935; }
+.btn-danger:hover { background: #FFCDD2; }
+.btn-green { background: var(--green); color: white; }
+.btn-green:hover { background: #43A047; }
+
+/* Detail Modal */
+.detail-modal .modal { max-height: 95vh; }
+.detail-images { border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+.detail-images img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 12px; }
+.detail-images .img-scroll {
+  display: flex; overflow-x: auto; gap: 8px;
+  scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch;
+}
+.detail-images .img-scroll img {
+  min-width: 80%; max-width: 80%; scroll-snap-align: center;
+}
+.detail-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.detail-food { font-size: 15px; color: var(--text-light); margin-bottom: 10px; line-height: 1.6; }
+.detail-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.detail-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #F5F5F5; border-radius: 10px; padding: 6px 14px;
+  font-size: 13px; color: var(--text); text-decoration: none;
+  transition: all 0.2s;
+}
+.detail-link:hover { background: var(--primary); color: white; }
+.detail-section { margin-top: 16px; }
+.detail-section h3 {
+  font-size: 14px; color: var(--text-light); margin-bottom: 8px;
+  border-bottom: 1px solid var(--border); padding-bottom: 4px;
+}
+.visit-photos-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+}
+.visit-photos-grid img {
+  width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px;
+}
+.detail-actions {
+  display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap;
+}
+.detail-actions .btn { flex: none; padding: 10px 20px; }
+
+/* Search & Filter */
+.search-bar {
+  margin-bottom: 14px; position: relative;
+}
+.search-bar input {
+  width: 100%; padding: 10px 14px 10px 38px;
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 14px; background: white; transition: border-color 0.2s;
+}
+.search-bar input:focus { outline: none; border-color: var(--primary); }
+.search-bar svg {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: #bbb;
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,0.8); color: white; padding: 10px 24px;
+  border-radius: 20px; font-size: 14px; z-index: 999;
+  opacity: 0; transition: opacity 0.3s;
+}
+.toast.show { opacity: 1; }
+
+/* Responsive */
+@media (min-width: 600px) {
+  .content { max-width: 500px; margin: 0 auto; }
+  .modal { border-radius: 20px; margin: 20px; max-height: calc(100vh - 40px); }
+  .modal-overlay { align-items: center; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <h1>漂亮饭清单 <span>🍜</span></h1>
+    <div style="display:flex;gap:8px;">
+      <button class="btn-add" onclick="openSettingsModal()" title="导入导出" style="font-size:18px;">⚙️</button>
+      <button class="btn-add" onclick="openAddModal()" title="添加新餐厅">＋</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="want" onclick="switchTab('want')">
+      想去<span class="tab-badge" id="wantCount">0</span>
+    </div>
+    <div class="tab" data-tab="been" onclick="switchTab('been')">
+      已打卡<span class="tab-badge" id="beenCount">0</span>
+    </div>
+  </div>
+</div>
+
+<div class="content">
+  <div class="search-bar">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="searchInput" placeholder="搜索餐厅或菜品..." oninput="renderList()">
+  </div>
+  <div id="cardList" class="card-list"></div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="modalTitle">添加餐厅</h2>
+    <form id="entryForm" onsubmit="saveEntry(event)">
+      <input type="hidden" id="entryId">
+      <div class="form-group">
+        <label>餐厅名称 *</label>
+        <input type="text" id="entryName" placeholder="比如：陈麻婆豆腐" required>
+      </div>
+      <div class="form-group">
+        <label>卖什么 / 推荐理由</label>
+        <textarea id="entryFood" placeholder="比如：招牌麻婆豆腐，据说是最正宗的川味..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>标签</label>
+        <input type="text" id="entryTags" placeholder="用空格分隔，如：川菜 麻辣 人均50">
+      </div>
+      <div class="form-group">
+        <label>封面图片</label>
+        <div class="upload-area" onclick="document.getElementById('coverInput').click()">
+          <div class="upload-icon">📷</div>
+          <p>点击上传图片</p>
+        </div>
+        <input type="file" id="coverInput" accept="image/*" multiple hidden onchange="previewImages('cover')">
+        <div class="preview-images" id="coverPreview"></div>
+      </div>
+      <div class="form-group">
+        <label>相关链接</label>
+        <div id="linksContainer"></div>
+        <button type="button" class="btn-add-link" onclick="addLinkField()">＋ 添加链接</button>
+      </div>
+      <div id="visitSection" style="display:none">
+        <div class="form-group">
+          <label>打卡日期</label>
+          <input type="date" id="entryVisitDate">
+        </div>
+        <div class="form-group">
+          <label>吃完感受</label>
+          <textarea id="entryVisitNote" placeholder="好吃吗？值不值？"></textarea>
+        </div>
+        <div class="form-group">
+          <label>打卡照片</label>
+          <div class="upload-area" onclick="document.getElementById('visitInput').click()">
+            <div class="upload-icon">📸</div>
+            <p>上传你去吃的照片</p>
+          </div>
+          <input type="file" id="visitInput" accept="image/*" multiple hidden onchange="previewImages('visit')">
+          <div class="preview-images" id="visitPreview"></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">取消</button>
+        <button type="submit" class="btn btn-primary">保存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay detail-modal" id="detailModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div id="detailContent"></div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>数据管理</h2>
+    <div style="padding:0 0 8px;color:var(--text-light);font-size:13px;text-align:center;">导出备份你的清单，或从备份文件恢复</div>
+    <div class="form-group">
+      <label>📤 导出数据</label>
+      <button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="exportData()">导出为 JSON 文件</button>
+    </div>
+    <div style="text-align:center;color:#ccc;font-size:13px;margin:8px 0;">— 或 —</div>
+    <div class="form-group">
+      <label>📥 导入数据</label>
+      <div class="upload-area" onclick="document.getElementById('importInput').click()" style="margin-top:4px;">
+        <div class="upload-icon">📂</div>
+        <p>点击选择 JSON 备份文件</p>
+      </div>
+      <input type="file" id="importInput" accept=".json" hidden onchange="importData(event)">
+    </div>
+    <div id="importResult" style="display:none;padding:10px;border-radius:8px;font-size:14px;margin-top:8px;"></div>
+    <div style="margin-top:16px;padding:12px;background:#FFF8F0;border-radius:10px;font-size:13px;color:var(--text-light);line-height:1.6;">
+      💡 <strong>小提示：</strong><br>
+      • 导出会生成一个 JSON 文件，包含你的所有餐厅数据<br>
+      • 导入时可以选择「合并」（保留原有+添加新数据）或「覆盖」（替换全部数据）<br>
+      • 换手机时先导出、再导入就行
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('settingsModal')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== IndexedDB =====
+const DB_NAME = 'PrettyFoodDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'entries';
+let db;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = (e) => { db = e.target.result; resolve(db); };
+    req.onerror = (e) => reject(e);
+  });
+}
+
+function dbOp(mode, fn) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, mode);
+    const store = tx.objectStore(STORE_NAME);
+    const result = fn(store);
+    if (result && result.onsuccess !== undefined) {
+      result.onsuccess = () => resolve(result.result);
+      result.onerror = () => reject(result.error);
+    } else {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    }
+  });
+}
+
+function getAllEntries() { return dbOp('readonly', s => s.getAll()); }
+function getEntry(id) { return dbOp('readonly', s => s.get(id)); }
+function putEntry(entry) { return dbOp('readwrite', s => s.put(entry)); }
+function deleteEntry(id) { return dbOp('readwrite', s => s.delete(id)); }
+
+// ===== State =====
+let currentTab = 'want';
+let coverImageData = [];
+let visitImageData = [];
+let editingId = null;
+
+// ===== Init =====
+async function init() {
+  await openDB();
+  renderList();
+  updateCounts();
+}
+
+// ===== Tab Switch =====
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  renderList();
+}
+
+// ===== Render =====
+async function renderList() {
+  const entries = await getAllEntries();
+  const filtered = entries.filter(e => e.status === currentTab);
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  const matched = search
+    ? filtered.filter(e => e.name.toLowerCase().includes(search) || (e.food||'').toLowerCase().includes(search) || (e.tags||[]).some(t => t.toLowerCase().includes(search)))
+    : filtered;
+
+  matched.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+  const container = document.getElementById('cardList');
+  if (matched.length === 0) {
+    container.innerHTML = search
+      ? `<div class="empty-state"><div class="empty-icon">🔍</div><p>没找到"${search}"相关的餐厅</p></div>`
+      : currentTab === 'want'
+        ? `<div class="empty-state"><div class="empty-icon">🤤</div><p>还没有想去的餐厅<br>点击右上角 ＋ 添加第一个吧</p></div>`
+        : `<div class="empty-state"><div class="empty-icon">📸</div><p>还没有打卡记录<br>把去过的餐厅标记为"已打卡"吧</p></div>`;
+    return;
+  }
+
+  container.innerHTML = matched.map(e => renderCard(e)).join('');
+}
+
+function renderCard(e) {
+  const imgHtml = e.coverImages && e.coverImages.length > 0
+    ? `<img src="${e.coverImages[0]}" alt="${e.name}"><div class="img-counter">${e.coverImages.length}张</div>`
+    : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:48px;">${e.status === 'want' ? '🍽️' : '✅'}</div>`;
+
+  const tagsHtml = (e.tags || []).map(t =>
+    `<span class="tag ${e.status === 'been' ? 'tag-green' : ''}">${t}</span>`
+  ).join('');
+
+  const linksHtml = (e.links || []).filter(l => l.url).map(l =>
+    `<a class="card-link" href="${l.url}" target="_blank" rel="noopener" onclick="event.stopPropagation()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      ${l.title || '链接'}
+    </a>`
+  ).join('');
+
+  const visitHtml = e.status === 'been' ? `
+    <div class="card-visit-info">
+      ✅ ${e.visitDate ? e.visitDate + ' 打卡' : '已打卡'}${e.visitNote ? ' · ' + e.visitNote.substring(0, 30) + (e.visitNote.length > 30 ? '...' : '') : ''}
+      ${e.visitPhotos && e.visitPhotos.length > 0 ? ' · ' + e.visitPhotos.length + '张照片' : ''}
+    </div>` : '';
+
+  return `<div class="card" onclick="openDetail('${e.id}')">
+    <div class="card-images">${imgHtml}</div>
+    <div class="card-body">
+      <div class="card-name">${e.status === 'been' ? '✅ ' : ''}${escHtml(e.name)}</div>
+      ${e.food ? `<div class="card-food">${escHtml(e.food)}</div>` : ''}
+      ${tagsHtml ? `<div class="card-tags">${tagsHtml}</div>` : ''}
+      ${linksHtml ? `<div class="card-links">${linksHtml}</div>` : ''}
+      <div class="card-date">添加于 ${formatDate(e.createdAt)}</div>
+      ${visitHtml}
+    </div>
+  </div>`;
+}
+
+// ===== Add/Edit Modal =====
+function openAddModal() {
+  editingId = null;
+  coverImageData = [];
+  visitImageData = [];
+  document.getElementById('modalTitle').textContent = '添加餐厅';
+  document.getElementById('entryForm').reset();
+  document.getElementById('entryId').value = '';
+  document.getElementById('coverPreview').innerHTML = '';
+  document.getElementById('visitPreview').innerHTML = '';
+  document.getElementById('visitSection').style.display = 'none';
+  document.getElementById('linksContainer').innerHTML = '';
+  addLinkField();
+  document.getElementById('editModal').classList.add('active');
+}
+
+async function openEditModal(id) {
+  const e = await getEntry(id);
+  if (!e) return;
+  editingId = id;
+  coverImageData = e.coverImages || [];
+  visitImageData = e.visitPhotos || [];
+  document.getElementById('modalTitle').textContent = '编辑餐厅';
+  document.getElementById('entryId').value = e.id;
+  document.getElementById('entryName').value = e.name;
+  document.getElementById('entryFood').value = e.food || '';
+  document.getElementById('entryTags').value = (e.tags || []).join(' ');
+
+  // Cover images
+  const cp = document.getElementById('coverPreview');
+  cp.innerHTML = '';
+  coverImageData.forEach((src, i) => {
+    cp.innerHTML += `<div class="preview-img"><img src="${src}"><button type="button" class="remove-img" onclick="removeImage('cover',${i})">×</button></div>`;
+  });
+
+  // Links
+  const lc = document.getElementById('linksContainer');
+  lc.innerHTML = '';
+  (e.links || []).forEach(l => addLinkField(l.title, l.url));
+
+  // Visit section
+  document.getElementById('visitSection').style.display = e.status === 'been' ? 'block' : 'none';
+  document.getElementById('entryVisitDate').value = e.visitDate || '';
+  document.getElementById('entryVisitNote').value = e.visitNote || '';
+
+  const vp = document.getElementById('visitPreview');
+  vp.innerHTML = '';
+  visitImageData.forEach((src, i) => {
+    vp.innerHTML += `<div class="preview-img"><img src="${src}"><button type="button" class="remove-img" onclick="removeImage('visit',${i})">×</button></div>`;
+  });
+
+  document.getElementById('editModal').classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+function addLinkField(title = '', url = '') {
+  const container = document.getElementById('linksContainer');
+  const div = document.createElement('div');
+  div.className = 'link-item';
+  div.innerHTML = `
+    <input type="text" placeholder="名称(如:美团)" value="${escHtml(title)}" class="link-title">
+    <input type="text" placeholder="链接地址" value="${escAttr(url)}" class="link-url">
+    <button type="button" class="btn-remove-link" onclick="this.parentElement.remove()">×</button>
+  `;
+  container.appendChild(div);
+}
+
+// ===== Image Handling =====
+function previewImages(type) {
+  const input = document.getElementById(type === 'cover' ? 'coverInput' : 'visitInput');
+  const preview = document.getElementById(type === 'cover' ? 'coverPreview' : 'visitPreview');
+  const arr = type === 'cover' ? coverImageData : visitImageData;
+
+  Array.from(input.files).forEach(file => {
+    compressImage(file, 800, 0.7).then(dataUrl => {
+      arr.push(dataUrl);
+      renderImagePreviews(type);
+    });
+  });
+  input.value = '';
+}
+
+function renderImagePreviews(type) {
+  const preview = document.getElementById(type === 'cover' ? 'coverPreview' : 'visitPreview');
+  const arr = type === 'cover' ? coverImageData : visitImageData;
+  preview.innerHTML = arr.map((src, i) =>
+    `<div class="preview-img"><img src="${src}"><button type="button" class="remove-img" onclick="removeImage('${type}',${i})">×</button></div>`
+  ).join('');
+}
+
+function removeImage(type, index) {
+  const arr = type === 'cover' ? coverImageData : visitImageData;
+  arr.splice(index, 1);
+  renderImagePreviews(type);
+}
+
+function compressImage(file, maxW, quality) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = h * maxW / w; w = maxW; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// ===== Save =====
+async function saveEntry(e) {
+  e.preventDefault();
+  const id = editingId || Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+  const name = document.getElementById('entryName').value.trim();
+  const food = document.getElementById('entryFood').value.trim();
+  const tagsRaw = document.getElementById('entryTags').value.trim();
+  const tags = tagsRaw ? tagsRaw.split(/[\s,，]+/).filter(Boolean) : [];
+
+  const linkItems = document.querySelectorAll('#linksContainer .link-item');
+  const links = [];
+  linkItems.forEach(item => {
+    const t = item.querySelector('.link-title').value.trim();
+    const u = item.querySelector('.link-url').value.trim();
+    if (u) links.push({ title: t || '链接', url: u });
+  });
+
+  const existing = editingId ? await getEntry(editingId) : null;
+  const status = existing ? existing.status : 'want';
+  const visitDate = document.getElementById('entryVisitDate').value;
+  const visitNote = document.getElementById('entryVisitNote').value.trim();
+
+  const entry = {
+    id, name, food, tags, links, status,
+    coverImages: coverImageData,
+    visitPhotos: visitImageData,
+    visitDate, visitNote,
+    createdAt: existing ? existing.createdAt : Date.now(),
+    updatedAt: Date.now()
+  };
+
+  await putEntry(entry);
+  closeModal('editModal');
+  renderList();
+  updateCounts();
+  showToast(editingId ? '已更新 ✏️' : '已添加 🍜');
+}
+
+// ===== Detail =====
+async function openDetail(id) {
+  const e = await getEntry(id);
+  if (!e) return;
+
+  const coverHtml = e.coverImages && e.coverImages.length > 0
+    ? `<div class="detail-images"><div class="img-scroll">${e.coverImages.map(s => `<img src="${s}">`).join('')}</div></div>` : '';
+
+  const tagsHtml = (e.tags || []).map(t =>
+    `<span class="tag ${e.status === 'been' ? 'tag-green' : ''}">${t}</span>`
+  ).join('');
+
+  const linksHtml = (e.links || []).filter(l => l.url).map(l =>
+    `<a class="detail-link" href="${l.url}" target="_blank" rel="noopener">
+      🔗 ${l.title || '链接'}
+    </a>`
+  ).join('');
+
+  const visitHtml = e.status === 'been' ? `
+    <div class="detail-section">
+      <h3>📝 打卡记录</h3>
+      ${e.visitDate ? `<p style="margin-bottom:6px;">📅 ${e.visitDate}</p>` : ''}
+      ${e.visitNote ? `<p style="line-height:1.6;">${escHtml(e.visitNote)}</p>` : ''}
+    </div>
+    ${e.visitPhotos && e.visitPhotos.length > 0 ? `
+      <div class="detail-section">
+        <h3>📸 打卡照片</h3>
+        <div class="visit-photos-grid">${e.visitPhotos.map(s => `<img src="${s}">`).join('')}</div>
+      </div>` : ''}
+  ` : '';
+
+  const actionsHtml = e.status === 'want' ? `
+    <button class="btn btn-green" onclick="markAsBeen('${e.id}')">✅ 标记为已打卡</button>
+    <button class="btn btn-secondary" onclick="closeModal('detailModal');openEditModal('${e.id}')">✏️ 编辑</button>
+    <button class="btn btn-danger" onclick="confirmDelete('${e.id}')">🗑️ 删除</button>
+  ` : `
+    <button class="btn btn-secondary" onclick="markAsWant('${e.id}')">↩️ 移回想去</button>
+    <button class="btn btn-secondary" onclick="closeModal('detailModal');openEditModal('${e.id}')">✏️ 编辑</button>
+    <button class="btn btn-danger" onclick="confirmDelete('${e.id}')">🗑️ 删除</button>
+  `;
+
+  document.getElementById('detailContent').innerHTML = `
+    ${coverHtml}
+    <div class="detail-name">${e.status === 'been' ? '✅ ' : ''}${escHtml(e.name)}</div>
+    ${e.food ? `<div class="detail-food">${escHtml(e.food)}</div>` : ''}
+    ${tagsHtml ? `<div class="card-tags" style="margin-bottom:10px;">${tagsHtml}</div>` : ''}
+    ${linksHtml ? `<div class="detail-links">${linksHtml}</div>` : ''}
+    <div style="font-size:12px;color:#bbb;">添加于 ${formatDate(e.createdAt)}${e.updatedAt !== e.createdAt ? ' · 更新于 ' + formatDate(e.updatedAt) : ''}</div>
+    ${visitHtml}
+    <div class="detail-actions">${actionsHtml}</div>
+  `;
+
+  document.getElementById('detailModal').classList.add('active');
+}
+
+// ===== Status Change =====
+async function markAsBeen(id) {
+  const e = await getEntry(id);
+  if (!e) return;
+  e.status = 'been';
+  e.updatedAt = Date.now();
+  await putEntry(e);
+  closeModal('detailModal');
+  currentTab = 'been';
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'been'));
+  renderList();
+  updateCounts();
+  showToast('已打卡！🎉');
+}
+
+async function markAsWant(id) {
+  const e = await getEntry(id);
+  if (!e) return;
+  e.status = 'want';
+  e.updatedAt = Date.now();
+  await putEntry(e);
+  closeModal('detailModal');
+  currentTab = 'want';
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'want'));
+  renderList();
+  updateCounts();
+  showToast('已移回想去 🤤');
+}
+
+async function confirmDelete(id) {
+  if (!confirm('确定要删除这个餐厅吗？删除后无法恢复。')) return;
+  await deleteEntry(id);
+  closeModal('detailModal');
+  renderList();
+  updateCounts();
+  showToast('已删除 🗑️');
+}
+
+// ===== Counts =====
+async function updateCounts() {
+  const entries = await getAllEntries();
+  document.getElementById('wantCount').textContent = entries.filter(e => e.status === 'want').length;
+  document.getElementById('beenCount').textContent = entries.filter(e => e.status === 'been').length;
+}
+
+// ===== Utils =====
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function escAttr(s) { return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+function formatDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ===== Import / Export =====
+function openSettingsModal() {
+  document.getElementById('importResult').style.display = 'none';
+  document.getElementById('importInput').value = '';
+  document.getElementById('settingsModal').classList.add('active');
+}
+
+async function exportData() {
+  const entries = await getAllEntries();
+  const data = {
+    app: '漂亮饭清单',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    count: entries.length,
+    entries: entries
+  };
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  a.href = url;
+  a.download = `漂亮饭清单_备份_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`已导出 ${entries.length} 条记录 📤`);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.entries || !Array.isArray(data.entries)) {
+        showImportResult('error', '文件格式不对，请选择之前导出的备份文件');
+        return;
+      }
+
+      const resultDiv = document.getElementById('importResult');
+      const existing = await getAllEntries();
+      const existingIds = new Set(existing.map(e => e.id));
+
+      const newEntries = data.entries.filter(e => !existingIds.has(e.id));
+      const dupCount = data.entries.length - newEntries.length;
+
+      // Show merge/overwrite choice
+      resultDiv.style.display = 'block';
+      resultDiv.style.background = '#FFF8F0';
+      resultDiv.style.color = 'var(--text)';
+      resultDiv.innerHTML = `
+        <div style="font-weight:600;margin-bottom:8px;">📂 文件包含 ${data.entries.length} 条记录</div>
+        <div style="font-size:13px;margin-bottom:10px;color:var(--text-light);">
+          你现在有 ${existing.length} 条记录，其中 ${dupCount} 条重复（同名ID）
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-green" style="flex:1;font-size:13px;padding:8px;" onclick="doImport('merge', ${JSON.stringify(data.entries).replace(/"/g, '&quot;').length > 0 ? 'true' : 'true'})">
+            合并（+${newEntries.length}条新增）
+          </button>
+          <button class="btn btn-danger" style="flex:1;font-size:13px;padding:8px;" onclick="doImport('overwrite')">
+            覆盖（替换全部）
+          </button>
+        </div>
+      `;
+
+      // Store import data temporarily
+      window._importData = data.entries;
+    } catch (err) {
+      showImportResult('error', '文件解析失败，请确认是正确的备份文件');
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function doImport(mode) {
+  const importEntries = window._importData;
+  if (!importEntries) return;
+
+  try {
+    if (mode === 'overwrite') {
+      // Delete all existing then import
+      const existing = await getAllEntries();
+      for (const e of existing) {
+        await deleteEntry(e.id);
+      }
+      for (const e of importEntries) {
+        await putEntry(e);
+      }
+      showImportResult('success', `已覆盖导入 ${importEntries.length} 条记录`);
+    } else {
+      // Merge: skip duplicates by id
+      const existing = await getAllEntries();
+      const existingIds = new Set(existing.map(e => e.id));
+      let added = 0;
+      for (const e of importEntries) {
+        if (!existingIds.has(e.id)) {
+          await putEntry(e);
+          added++;
+        }
+      }
+      showImportResult('success', `已合并导入 ${added} 条新记录（跳过 ${importEntries.length - added} 条重复）`);
+    }
+
+    delete window._importData;
+    renderList();
+    updateCounts();
+  } catch (err) {
+    showImportResult('error', '导入失败，请重试');
+  }
+}
+
+function showImportResult(type, msg) {
+  const resultDiv = document.getElementById('importResult');
+  resultDiv.style.display = 'block';
+  resultDiv.style.background = type === 'success' ? '#E8F5E9' : '#FFE5E5';
+  resultDiv.style.color = type === 'success' ? '#2E7D32' : '#C62828';
+  resultDiv.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + msg;
+}
+
+// Close modals on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeModal(overlay.id);
+  });
+});
+
+// Init
+init();
+</script>
+</body>
+</html>
