@@ -670,7 +670,10 @@ function calcScore(target) {
   // target: 'A' = the person being scored by me (default view), 'B' = me (flipped view)
   // In default view: I('A') score TA('B'). So target='B'.
   // In flipped view: TA('B') scores me('A'). So target='A'.
-  let t = (state.perspective === 'default') ? 'B' : 'A';
+  // Role-aware: default = I score TA; flipped = TA scores me
+  let t = (state.perspective === 'default')
+    ? (state.userRole === 'A' ? 'B' : 'A')
+    : (state.userRole === 'A' ? 'A' : 'B');
   let sum = 100;
   state.events.forEach(ev => {
     if (ev.target === t) sum += ev.delta;
@@ -815,7 +818,9 @@ function renderQuickActions() {
 
 function renderRecentHistory() {
   const container = document.getElementById('recentHistory');
-  const target = state.perspective === 'default' ? 'B' : 'A';
+  const target = (state.perspective === 'default')
+    ? (state.userRole === 'A' ? 'B' : 'A')
+    : (state.userRole === 'A' ? 'A' : 'B');
   const events = state.events
     .filter(ev => ev.target === target)
     .sort((a,b) => b.ts - a.ts)
@@ -843,7 +848,9 @@ function renderRecentHistory() {
 
 // ===== Calendar =====
 function renderCalendar() {
-  const target = state.perspective === 'default' ? 'B' : 'A';
+  const target = (state.perspective === 'default')
+    ? (state.userRole === 'A' ? 'B' : 'A')
+    : (state.userRole === 'A' ? 'A' : 'B');
   const {calYear: year, calMonth: month} = state;
   const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
   document.getElementById('calTitle').textContent = `${year}年${monthNames[month]}`;
@@ -910,7 +917,9 @@ function selectCalDay(day) {
 }
 
 function showDayDetail(day) {
-  const target = state.perspective === 'default' ? 'B' : 'A';
+  const target = (state.perspective === 'default')
+    ? (state.userRole === 'A' ? 'B' : 'A')
+    : (state.userRole === 'A' ? 'A' : 'B');
   const events = getEventsForDay(target, state.calYear, state.calMonth, day);
   const card = document.getElementById('dayDetailCard');
   const {calYear: y, calMonth: m} = state;
