@@ -1457,6 +1457,10 @@ function mergeEventData(remoteEvents) {
 
 async function pushToGitHub() {
   const data = getLocalSyncData();
+  // Safety: never push empty data to overwrite cloud
+  if (data.eventsA.length === 0 && data.eventsB.length === 0) {
+    return { skipped: true, reason: 'local empty' };
+  }
   const result = await ghWriteFile(data, ghSha);
   lastSyncTime = Date.now();
   return result;
@@ -1506,8 +1510,23 @@ async function autoSync() {
   syncInProgress = true;
   updateSyncBadge('syncing');
   try {
+    const localCount = state.events.length;
+    const remote = await ghFetchFile();
+    let remoteCount = 0;
+    if (remote) {
+      ghSha = remote.sha;
+      const json = decodeURIComponent(escape(atob(remote.content)));
+      const parsed = JSON.parse(json);
+      remoteCount = (parsed.eventsA || []).length + (parsed.eventsB || []).length;
+    }
+    // Always pull cloud data (pullFromGitHub uses ghSha already set)
     await pullFromGitHub();
-    await pushToGitHub();
+    // Only push if local has meaningful data; never overwrite cloud with empty/less data
+    if (localCount === 0 || remoteCount > localCount) {
+      // Cloud has more data or local was empty → don't push
+    } else {
+      await pushToGitHub();
+    }
     updateSyncTime();
   } catch(e) {
     console.error('Sync error:', e);
@@ -1567,15 +1586,20 @@ async function initGitHub() {
       if (newCount > 0) {
         saveData();
         status.textContent = `✅ 已连接！从云端同步了 ${newCount} 条新记录`;
+      } else if (state.events.length === 0) {
+        status.textContent = '✅ 已连接！云端和本地都没有数据';
       } else {
-        status.textContent = '✅ 已连接！云端暂无数据，将上传当前数据';
-        await pushToGitHub();
+        status.textContent = '✅ 已连接！数据已同步';
       }
     } catch(e) {
-      // File doesn't exist yet, push initial data
-      status.textContent = '📤 初始化云端数据...';
-      await pushToGitHub();
-      status.textContent = '✅ 已连接并初始化完成！';
+      // File doesn't exist yet, push initial data only if local has data
+      if (state.events.length > 0) {
+        status.textContent = '📤 初始化云端数据...';
+        await pushToGitHub();
+        status.textContent = '✅ 已连接并初始化完成！';
+      } else {
+        status.textContent = '✅ 已连接！云端和本地都没有数据';
+      }
     }
 
     saveGhConfig();
