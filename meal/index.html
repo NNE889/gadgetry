@@ -754,6 +754,8 @@ async function ghWriteFile(content,sha){
 
 async function pushToGitHub(){
   var entries=await getAllEntries();
+  // Safety: never push empty data to overwrite cloud
+  if(entries.length===0){return {skipped:true,reason:'local empty'};}
   var data={app:'漂亮饭清单',version:2,entries:entries,customTags:getCustomTags(),lastModified:Date.now(),syncedAt:new Date().toISOString()};
   var result=await ghWriteFile(data,ghSha);
   lastSyncTime=Date.now();
@@ -786,7 +788,27 @@ async function autoSync(){
   if(!isGhConfigured()||syncInProgress)return;
   syncInProgress=true;
   updateSyncBadge('syncing');
-  try{await pullFromGitHub();await pushToGitHub();updateSyncTime();}
+  try{
+    var localEntries=await getAllEntries();
+    var localCount=localEntries.length;
+    var remote=await ghFetchFile();
+    var remoteCount=0;
+    if(remote){
+      ghSha=remote.sha;
+      var json=decodeURIComponent(escape(atob(remote.content)));
+      var parsed=JSON.parse(json);
+      remoteCount=(parsed.entries||[]).length;
+    }
+    // Always pull cloud data
+    await pullFromGitHub();
+    // Only push if local has meaningful data; never overwrite cloud with empty/less data
+    if(localCount===0||remoteCount>localCount){
+      // Cloud has more data or local was empty → don't push
+    } else {
+      await pushToGitHub();
+    }
+    updateSyncTime();
+  }
   catch(e){console.error('Sync error:',e);updateSyncBadge('error');}
   syncInProgress=false;
 }
@@ -824,12 +846,14 @@ async function initGitHub(){
     status.textContent='🔄 检查云端数据...';
     try{
       var newCount=await pullFromGitHub();
+      var localEntries=await getAllEntries();
       if(newCount>0){status.textContent='✅ 已连接！从云端同步了 '+newCount+' 条新记录';}
-      else{status.textContent='✅ 已连接！将上传当前数据';await pushToGitHub();}
+      else if(localEntries.length===0){status.textContent='📤 本地无数据，初始化云端...';await pushToGitHub();}
+      else{status.textContent='✅ 已连接！数据已同步';}
     }catch(e){
-      status.textContent='📤 初始化云端数据...';
-      await pushToGitHub();
-      status.textContent='✅ 已连接并初始化完成！';
+      var localEntries2=await getAllEntries();
+      if(localEntries2.length>0){status.textContent='📤 初始化云端数据...';await pushToGitHub();status.textContent='✅ 已连接并初始化完成！';}
+      else{status.textContent='✅ 已连接！云端和本地都没有数据';}
     }
     saveGhConfig();updateSyncTime();renderList();updateCounts();
     showToast('✅ GitHub 同步已开启！');
