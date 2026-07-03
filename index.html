@@ -1,185 +1,1582 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>姑姑生日快乐</title>
-    <style>
-        body {
-            background-color: blue;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            color: #fff;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>恋爱评分 ❤️ Love Score</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --primary:#FF6B81;--primary-light:#FF8FA3;--primary-dark:#E85D73;
+  --bg:#FFF5F7;--card:#FFFFFF;--text:#2D3436;--text-sec:#636E72;
+  --border:#FFE0E6;--shadow:0 4px 20px rgba(255,107,129,.12);
+  --score-color:#FF6B81;
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB',sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  transition:background .6s ease;
+}
+.container{max-width:480px;margin:0 auto;padding:0 16px 100px;position:relative}
 
-        #message {
-            font-size: 30px; /* 增大字体大小，你可以根据需求调整这个值 */
-            text-align: center;
-            position: relative;
-            z-index: 2;
-            opacity: 0;
-            animation: fadeIn 3s ease-in-out forwards;
-        }
+/* ===== Header ===== */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 0 12px;position:sticky;top:0;z-index:100;
+  background:var(--bg);transition:background .6s;
+}
+.header-title{font-size:18px;font-weight:700;display:flex;align-items:center;gap:6px}
+.toggle-btn{
+  display:flex;align-items:center;gap:6px;padding:8px 14px;
+  border-radius:20px;border:none;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .3s;
+  background:var(--card);color:var(--primary);
+  box-shadow:0 2px 8px rgba(255,107,129,.15);
+}
+.toggle-btn:active{transform:scale(.95)}
+.toggle-btn .arrow{font-size:16px;transition:transform .3s}
+.toggle-btn.flipped .arrow{transform:rotate(180deg)}
+.sync-badge{
+  font-size:11px;color:var(--text-sec);padding:3px 8px;
+  border-radius:8px;background:rgba(0,0,0,.04);
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.sync-badge:active{opacity:.6}
+.sync-badge.syncing{color:var(--primary)}
+.sync-badge.error{color:#E74C3C}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.sync-spinning{display:inline-block;animation:spin 1s linear infinite}
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
+/* ===== Heart Score ===== */
+.heart-section{display:flex;flex-direction:column;align-items:center;padding:16px 0 8px}
+.heart-wrap{position:relative;width:200px;height:200px;cursor:pointer}
+.heart-wrap:active{transform:scale(.97)}
+.heart-svg{width:100%;height:100%;filter:drop-shadow(0 4px 16px rgba(255,107,129,.25))}
+.heart-fill-mask{transition:y .8s cubic-bezier(.4,0,.2,1),height .8s cubic-bezier(.4,0,.2,1)}
+.score-badge{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  background:var(--card);border-radius:20px;padding:6px 20px;
+  font-size:22px;font-weight:800;color:var(--score-color);
+  box-shadow:0 2px 12px rgba(0,0,0,.08);white-space:nowrap;
+  transition:color .4s;
+}
+.score-label{
+  margin-top:10px;font-size:15px;color:var(--text-sec);font-weight:500;
+  transition:color .4s;
+}
+.score-rank{
+  margin-top:4px;font-size:22px;font-weight:700;
+  color:var(--score-color);transition:color .4s;
+}
+.score-change{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:32px;font-weight:800;pointer-events:none;
+  animation:scoreFloat 1.2s ease-out forwards;opacity:0;z-index:10;
+}
+@keyframes scoreFloat{
+  0%{opacity:1;transform:translate(-50%,-50%) scale(.5)}
+  30%{opacity:1;transform:translate(-50%,-80%) scale(1.2)}
+  100%{opacity:0;transform:translate(-50%,-140%) scale(1)}
+}
+@keyframes heartPulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.08)}
+}
+.heart-pulse{animation:heartPulse .4s ease}
 
-        canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            z-index: 1;
-        }
-    </style>
+/* ===== Tab Bar ===== */
+.tab-bar{
+  display:flex;justify-content:center;gap:4px;padding:8px 0;
+  position:fixed;bottom:0;left:0;right:0;
+  background:var(--card);border-top:1px solid var(--border);
+  padding:8px 16px;padding-bottom:max(8px,env(safe-area-inset-bottom));
+  z-index:100;
+}
+.tab-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:8px;border:none;background:none;cursor:pointer;
+  font-size:11px;color:var(--text-sec);border-radius:12px;
+  transition:all .2s;
+}
+.tab-btn.active{color:var(--primary);background:rgba(255,107,129,.08)}
+.tab-btn .tab-icon{font-size:22px}
+
+/* ===== Views ===== */
+.view{display:none}
+.view.active{display:block}
+
+/* ===== Cards ===== */
+.card{
+  background:var(--card);border-radius:16px;padding:16px;
+  margin-bottom:12px;box-shadow:var(--shadow);
+}
+.card-title{
+  font-size:15px;font-weight:700;margin-bottom:12px;
+  display:flex;align-items:center;gap:6px;
+}
+
+/* ===== Quick Score Buttons ===== */
+.quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.quick-btn{
+  display:flex;align-items:center;gap:8px;padding:12px 14px;
+  border-radius:14px;border:none;cursor:pointer;
+  font-size:14px;font-weight:600;transition:all .2s;
+  position:relative;overflow:hidden;
+}
+.quick-btn:active{transform:scale(.96)}
+.quick-btn.positive{background:#FFF0F3;color:#E85D73}
+.quick-btn.negative{background:#F0F0FF;color:#6C5CE7}
+.quick-btn .q-icon{font-size:20px}
+.quick-btn .q-text{flex:1;text-align:left}
+.quick-btn .q-pts{font-size:13px;font-weight:700;opacity:.7}
+
+/* ===== Custom Score ===== */
+.score-toggle{display:flex;gap:8px;margin-bottom:12px}
+.score-toggle button{
+  flex:1;padding:10px;border-radius:12px;border:2px solid var(--border);
+  background:var(--card);font-size:14px;font-weight:600;
+  cursor:pointer;transition:all .2s;color:var(--text-sec);
+}
+.score-toggle button.active-add{border-color:#FF6B81;background:#FFF0F3;color:#E85D73}
+.score-toggle button.active-sub{border-color:#6C5CE7;background:#F0F0FF;color:#6C5CE7}
+.custom-row{display:flex;gap:8px;margin-bottom:8px}
+.custom-row input,.custom-row select{
+  flex:1;padding:12px;border-radius:12px;border:1.5px solid var(--border);
+  font-size:14px;outline:none;background:var(--card);
+  transition:border-color .2s;
+}
+.custom-row input:focus{border-color:var(--primary)}
+.submit-btn{
+  width:100%;padding:14px;border-radius:14px;border:none;
+  background:linear-gradient(135deg,var(--primary),var(--primary-dark));
+  color:#fff;font-size:15px;font-weight:700;cursor:pointer;
+  transition:all .2s;box-shadow:0 4px 16px rgba(255,107,129,.3);
+}
+.submit-btn:active{transform:scale(.97)}
+
+/* ===== History ===== */
+.history-item{
+  display:flex;align-items:center;gap:10px;padding:12px 0;
+  border-bottom:1px solid #f8f0f2;
+}
+.history-item:last-child{border-bottom:none}
+.h-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.h-dot.pos{background:#FF6B81}
+.h-dot.neg{background:#6C5CE7}
+.h-info{flex:1;min-width:0}
+.h-reason{font-size:14px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-time{font-size:12px;color:var(--text-sec);margin-top:2px}
+.h-score{font-size:15px;font-weight:700;flex-shrink:0}
+.h-score.pos{color:#E85D73}
+.h-score.neg{color:#6C5CE7}
+.h-scorer{font-size:11px;color:var(--text-sec);flex-shrink:0}
+.empty-state{text-align:center;padding:32px 16px;color:var(--text-sec);font-size:14px}
+
+/* ===== Calendar ===== */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cal-title{font-size:16px;font-weight:700}
+.cal-nav{display:flex;gap:4px}
+.cal-nav button{
+  width:36px;height:36px;border-radius:10px;border:none;
+  background:rgba(255,107,129,.08);color:var(--primary);
+  font-size:18px;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;transition:all .2s;
+}
+.cal-nav button:active{transform:scale(.9)}
+.cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);text-align:center;margin-bottom:4px}
+.cal-weekdays span{font-size:12px;color:var(--text-sec);font-weight:600;padding:4px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-day{
+  aspect-ratio:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;border-radius:10px;
+  font-size:13px;cursor:pointer;transition:all .2s;position:relative;
+}
+.cal-day.empty{cursor:default}
+.cal-day.has-score{font-weight:700}
+.cal-day .day-num{font-size:13px;line-height:1}
+.cal-day .day-pts{font-size:9px;font-weight:700;margin-top:1px;opacity:.8}
+.cal-day.today{outline:2px solid var(--primary);outline-offset:-1px}
+.cal-day.detail-selected{outline:2px solid var(--primary);outline-offset:1px}
+.cal-summary{
+  display:flex;justify-content:space-around;padding:12px;
+  margin-top:12px;background:rgba(255,107,129,.04);border-radius:12px;
+}
+.cal-stat{text-align:center}
+.cal-stat .stat-num{font-size:20px;font-weight:800}
+.cal-stat .stat-label{font-size:11px;color:var(--text-sec);margin-top:2px}
+.day-detail{margin-top:12px}
+.day-detail-title{font-size:14px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.day-detail-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-sec)}
+
+/* ===== Settings ===== */
+.setting-group{margin-bottom:20px}
+.setting-label{font-size:13px;font-weight:600;color:var(--text-sec);margin-bottom:8px}
+.setting-input{
+  width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--border);
+  font-size:15px;outline:none;background:var(--card);transition:border-color .2s;
+}
+.setting-input:focus{border-color:var(--primary)}
+.rule-item{
+  display:flex;align-items:center;gap:8px;padding:10px 0;
+  border-bottom:1px solid #f8f0f2;
+}
+.rule-item:last-child{border-bottom:none}
+.rule-icon{font-size:20px}
+.rule-text{flex:1;font-size:14px}
+.rule-pts{font-size:14px;font-weight:700}
+.rule-del{
+  width:28px;height:28px;border-radius:8px;border:none;
+  background:#FFF0F3;color:#E85D73;font-size:16px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.add-rule-row{display:flex;gap:6px;margin-top:8px}
+.add-rule-row input,.add-rule-row select{
+  padding:10px;border-radius:10px;border:1.5px solid var(--border);
+  font-size:13px;outline:none;flex:none;
+}
+.add-rule-row input:first-child{flex:1}
+.add-rule-row button{
+  padding:10px 16px;border-radius:10px;border:none;
+  background:var(--primary);color:#fff;font-size:13px;
+  font-weight:600;cursor:pointer;white-space:nowrap;
+}
+.sync-section{display:flex;flex-direction:column;gap:8px}
+.sync-btn{
+  padding:12px;border-radius:12px;border:none;font-size:14px;
+  font-weight:600;cursor:pointer;transition:all .2s;
+}
+.sync-btn:active{transform:scale(.97)}
+.sync-btn.export{background:#FFF0F3;color:#E85D73}
+.sync-btn.import{background:#F0F0FF;color:#6C5CE7}
+.sync-textarea{
+  width:100%;padding:12px;border-radius:12px;border:1.5px solid var(--border);
+  font-size:12px;outline:none;resize:none;height:80px;
+  font-family:monospace;
+}
+
+/* ===== Modal ===== */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+  z-index:200;align-items:flex-end;justify-content:center;
+}
+.modal-overlay.show{display:flex}
+.modal-content{
+  background:var(--card);border-radius:20px 20px 0 0;
+  padding:24px 20px;padding-bottom:max(24px,env(safe-area-inset-bottom));
+  width:100%;max-width:480px;max-height:70vh;overflow-y:auto;
+  animation:slideUp .3s ease;
+}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-title{font-size:17px;font-weight:700;margin-bottom:16px;text-align:center}
+
+/* ===== Confirm Dialog ===== */
+.confirm-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);
+  z-index:300;align-items:center;justify-content:center;padding:20px;
+}
+.confirm-overlay.show{display:flex}
+.confirm-box{
+  background:var(--card);border-radius:20px;padding:24px;
+  width:100%;max-width:320px;text-align:center;
+  animation:popIn .3s ease;
+}
+@keyframes popIn{from{transform:scale(.8);opacity:0}to{transform:scale(1);opacity:1}}
+.confirm-title{font-size:17px;font-weight:700;margin-bottom:8px}
+.confirm-msg{font-size:14px;color:var(--text-sec);margin-bottom:20px;line-height:1.5}
+.confirm-btns{display:flex;gap:8px}
+.confirm-btns button{
+  flex:1;padding:12px;border-radius:12px;border:none;
+  font-size:14px;font-weight:600;cursor:pointer;
+}
+.confirm-cancel{background:#F0F0F0;color:var(--text-sec)}
+.confirm-ok{background:var(--primary);color:#fff}
+
+/* ===== Toast ===== */
+.toast{
+  position:fixed;top:60px;left:50%;transform:translateX(-50%);
+  background:#333;color:#fff;padding:10px 20px;border-radius:12px;
+  font-size:14px;z-index:400;animation:toastIn .3s ease;
+  box-shadow:0 4px 16px rgba(0,0,0,.2);
+}
+@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(-10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+
+/* ===== Responsive ===== */
+@media(min-width:500px){
+  .container{padding:0 20px 100px}
+}
+
+/* ===== Welcome Overlay ===== */
+.welcome-overlay{
+  position:fixed;inset:0;background:linear-gradient(135deg,#FFF5F7 0%,#FFE8ED 100%);
+  z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:32px 24px;
+}
+.welcome-overlay.hidden{display:none}
+.welcome-title{font-size:28px;font-weight:800;color:var(--primary);margin-bottom:8px;text-align:center}
+.welcome-sub{font-size:14px;color:var(--text-sec);margin-bottom:32px;text-align:center;line-height:1.6}
+.welcome-role-card{
+  width:100%;max-width:320px;padding:20px;border-radius:16px;margin-bottom:14px;
+  border:2px solid var(--border);background:var(--card);cursor:pointer;
+  transition:all .25s;text-align:center;
+}
+.welcome-role-card:active{transform:scale(.97)}
+.welcome-role-card.selected{border-color:var(--primary);background:rgba(255,107,129,.08);box-shadow:0 4px 20px rgba(255,107,129,.2)}
+.welcome-role-emoji{font-size:36px;margin-bottom:8px}
+.welcome-role-title{font-size:17px;font-weight:700;color:var(--text);margin-bottom:4px}
+.welcome-role-desc{font-size:12px;color:var(--text-sec);line-height:1.5}
+.welcome-confirm-btn{
+  margin-top:12px;padding:14px 40px;border-radius:14px;border:none;
+  background:var(--primary);color:#fff;font-size:16px;font-weight:700;
+  cursor:pointer;transition:all .2s;opacity:.4;pointer-events:none;
+}
+.welcome-confirm-btn.active{opacity:1;pointer-events:auto}
+.welcome-confirm-btn.active:active{transform:scale(.96)}
+.welcome-note{margin-top:16px;font-size:11px;color:var(--text-sec);text-align:center;opacity:.7;line-height:1.5}
+</style>
 </head>
-
 <body>
-    <div id="message">
-        姑姑，生日快乐！<br> 蛇年行大运，幸福又安康！
-    </div>
-    <canvas id="fireworks"></canvas>
-    <script>
-        // 烟花粒子类
-        class Particle {
-            constructor(x, y, hue, life) {
-                this.x = x;
-                this.y = y;
-                this.hue = hue;
-                this.life = life;
-                this.alpha = 1;
-                // 减小粒子的水平速度，让其移动更缓慢
-                this.vx = (Math.random() - 0.5) * 3; 
-                // 减小粒子的垂直速度
-                this.vy = Math.random() * -3; 
-                // 减小粒子的重力，使其下落更缓慢
-                this.gravity = 0.1; 
-                this.size = Math.random() * 3 + 1;
-            }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.vy += this.gravity;
-                this.life--;
-                this.alpha = Math.max(0, this.life / 100);
-                if (this.life <= 0) {
-                    return true;
-                }
-                return false;
-            }
-            draw(ctx) {
-                ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
-                ctx.fillStyle = `hsla(${this.hue}, 100%, 50%, ${this.alpha})`;
-                ctx.fill();
-            }
-        }
-        // 烟花类
-        class Firework {
-            constructor(x, y) {
-                this.x = x;
-                this.y = y;
-                this.hue = Math.random() * 360;
-                this.particles = [];
-                this.exploded = false;
-                // 减小烟花的水平速度
-                this.vx = (Math.random() - 0.5) * 1; 
-                // 减小烟花的垂直速度
-                this.vy = Math.random() * -10; 
-                // 减小烟花的重力
-                this.gravity = 0.1; 
-                this.size = Math.random() * 3 + 2;
-            }
-            update() {
-                if (!this.exploded) {
-                    this.x += this.vx;
-                    this.y += this.vy;
-                    this.vy += this.gravity;
-                    if (this.vy >= 0) {
-                        this.explode();
-                    }
-                } else {
-                    for (let i = this.particles.length - 1; i >= 0; i--) {
-                        if (this.particles[i].update()) {
-                            this.particles.splice(i, 1);
-                        }
-                    }
-                }
-                if (this.particles.length === 0 && this.exploded) {
-                    return true;
-                }
-                return false;
-            }
-            explode() {
-                this.exploded = true;
-                for (let i = 0; i < 100; i++) {
-                    this.particles.push(new Particle(this.x, this.y, this.hue, 100));
-                }
-            }
-            draw(ctx) {
-                if (!this.exploded) {
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.size, 0, 2 * Math.PI);
-                    ctx.fillStyle = `hsl(${this.hue}, 100%, 50%)`;
-                    ctx.fill();
-                } else {
-                    for (let particle of this.particles) {
-                        particle.draw(ctx);
-                    }
-                }
-            }
-        }
-        // 初始化画布
-        const canvas = document.getElementById('fireworks');
-        const ctx = canvas.getContext('2d');
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
-        let fireworks = [];
-        function createFirework() {
-            const x = Math.random() * canvas.width;
-            const y = Math.random() * (canvas.height * 0.3);
-            fireworks.push(new Firework(x, y));
-        }
-        function animate() {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            for (let i = fireworks.length - 1; i >= 0; i--) {
-                if (fireworks[i].update()) {
-                    fireworks.splice(i, 1);
-                } else {
-                    fireworks[i].draw(ctx);
-                }
-            }
-            // 降低新烟花生成的概率
-            if (Math.random() < 0.03) { 
-                createFirework();
-            }
-            requestAnimationFrame(animate);
-        }
-        window.addEventListener('load', function () {
-            const message = document.getElementById('message');
-            message.style.opacity = 1;
-            setTimeout(() => {
-                message.style.animation = 'fadeIn 3s ease-in-out forwards';
-            }, 100);
-        });
-        animate();
-    </script>
-</body>
 
+<!-- Welcome Overlay (首次选择身份) -->
+<div class="welcome-overlay" id="welcomeOverlay">
+  <div style="font-size:48px;margin-bottom:12px">💕</div>
+  <div class="welcome-title">恋爱评分</div>
+  <div class="welcome-sub">请选择你的身份<br><span style="font-size:12px;opacity:.7">这个选择会保存，之后无法更改哦</span></div>
+  <div class="welcome-role-card" id="welcomeRoleA" onclick="selectWelcomeRole('A')">
+    <div class="welcome-role-emoji">💗</div>
+    <div class="welcome-role-title">我来评 TA</div>
+    <div class="welcome-role-desc">你来给对象打分，可以加减分；<br>切换视角可看到对象给你打的分数（只读）</div>
+  </div>
+  <div class="welcome-role-card" id="welcomeRoleB" onclick="selectWelcomeRole('B')">
+    <div class="welcome-role-emoji">💙</div>
+    <div class="welcome-role-title">TA 来评我</div>
+    <div class="welcome-role-desc">对象给你打分，你可以查看分数；<br>切换视角可看到 TA 给你评的分（只读）</div>
+  </div>
+  <button class="welcome-confirm-btn" id="welcomeConfirmBtn" onclick="confirmWelcomeRole()">开始使用 💕</button>
+  <div class="welcome-note">⚠️ 身份选择后不可更改，请和对象商量好各自角色</div>
+</div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-title">💕 <span id="headerTitle">恋爱评分</span></div>
+    <div style="display:flex;align-items:center;gap:6px">
+      <span class="sync-badge" id="syncBadge" onclick="manualSync()" title="点击手动同步"></span>
+      <button class="toggle-btn" id="toggleBtn" onclick="togglePerspective()">
+        <span class="arrow">🔄</span>
+        <span id="toggleLabel">看TA评我</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Dashboard View -->
+  <div id="dashboardView" class="view active">
+    <!-- Heart Score -->
+    <div class="heart-section">
+      <div class="heart-wrap" id="heartWrap" onclick="pulseHeart()">
+        <svg class="heart-svg" viewBox="0 0 200 200">
+          <defs>
+            <linearGradient id="heartGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" id="gradStop1" stop-color="#FF6B81"/>
+              <stop offset="100%" id="gradStop2" stop-color="#FF8FA3"/>
+            </linearGradient>
+            <clipPath id="heartClip">
+              <path d="M100 175C60 140 15 110 15 65C15 35 38 15 63 15C80 15 94 25 100 40C106 25 120 15 137 15C162 15 185 35 185 65C185 110 140 140 100 175Z"/>
+            </clipPath>
+          </defs>
+          <path d="M100 175C60 140 15 110 15 65C15 35 38 15 63 15C80 15 94 25 100 40C106 25 120 15 137 15C162 15 185 35 185 65C185 110 140 140 100 175Z" fill="#FFE0E6"/>
+          <rect id="heartFill" class="heart-fill-mask" x="0" y="175" width="200" height="0" fill="url(#heartGrad)" clip-path="url(#heartClip)"/>
+        </svg>
+        <div class="score-badge" id="scoreBadge">100</div>
+      </div>
+      <div class="score-label" id="scoreLabel">TA的分数</div>
+      <div class="score-rank" id="scoreRank">甜蜜满分 ❤️</div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card" id="quickCard">
+      <div class="card-title">⚡ 快捷评分</div>
+      <div class="quick-grid" id="quickGrid"></div>
+    </div>
+
+    <!-- Custom Score -->
+    <div class="card">
+      <div class="card-title">✏️ 自定义评分</div>
+      <div class="score-toggle" id="scoreToggle">
+        <button class="active-add" data-type="add" onclick="setScoreType('add')">❤️ 加分</button>
+        <button data-type="sub" onclick="setScoreType('sub')">💔 减分</button>
+      </div>
+      <div class="custom-row">
+        <input type="number" id="customPoints" placeholder="分数" min="1" max="999">
+        <input type="text" id="customReason" placeholder="原因（可选）">
+      </div>
+      <button class="submit-btn" onclick="submitCustomScore()">确认提交</button>
+    </div>
+
+    <!-- Recent History -->
+    <div class="card">
+      <div class="card-title">📋 最近记录</div>
+      <div id="recentHistory"></div>
+    </div>
+  </div>
+
+  <!-- Calendar View -->
+  <div id="calendarView" class="view">
+    <div class="card">
+      <div class="cal-header">
+        <div class="cal-title" id="calTitle">2026年7月</div>
+        <div class="cal-nav">
+          <button onclick="changeMonth(-1)">‹</button>
+          <button onclick="changeMonth(1)">›</button>
+        </div>
+      </div>
+      <div class="cal-weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-summary" id="calSummary"></div>
+    </div>
+    <div class="card" id="dayDetailCard" style="display:none">
+      <div class="day-detail-title">
+        <span id="dayDetailTitle">详细记录</span>
+        <button class="day-detail-close" onclick="closeDayDetail()">×</button>
+      </div>
+      <div id="dayDetailContent"></div>
+    </div>
+  </div>
+
+  <!-- Settings View -->
+  <div id="settingsView" class="view">
+    <div class="card">
+      <div class="card-title">⚙️ 基本设置</div>
+      <div class="setting-group">
+        <div class="setting-label">我的名字</div>
+        <input class="setting-input" id="myNameInput" placeholder="输入你的名字" onchange="saveSettings()">
+      </div>
+      <div class="setting-group">
+        <div class="setting-label">TA的名字</div>
+        <input class="setting-input" id="taNameInput" placeholder="输入TA的名字" onchange="saveSettings()">
+      </div>
+      <div id="roleInfoBox" style="margin-top:8px;padding:10px 12px;background:rgba(255,107,129,.06);border-radius:10px;font-size:12px;color:var(--text-sec);line-height:1.6"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📝 预设规则管理</div>
+      <div id="rulesList"></div>
+      <div class="add-rule-row">
+        <input type="text" id="newRuleIcon" placeholder="😊" style="width:44px;text-align:center">
+        <input type="text" id="newRuleText" placeholder="事件描述">
+        <input type="number" id="newRulePts" placeholder="分值" style="width:60px;text-align:center">
+        <button onclick="addRule()">添加</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔗 数据同步</div>
+      <p style="font-size:13px;color:var(--text-sec);margin-bottom:12px;line-height:1.5">
+        将你的数据「导出」后发给对象，对象在自己的 app 里「导入」即可同步。<br>建议定期导出备份。
+      </p>
+      <div class="sync-section">
+        <button class="sync-btn export" onclick="exportData()">📤 导出数据</button>
+        <textarea class="sync-textarea" id="exportArea" readonly placeholder="导出的数据会显示在这里..."></textarea>
+        <button class="sync-btn import" onclick="showImportModal()">📥 导入数据</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔗 GitHub 云同步</div>
+      <p style="font-size:12px;color:var(--text-sec);margin-bottom:12px;line-height:1.6">
+        配置后每次打分自动同步到 GitHub 私人仓库，对方打开 app 自动拉取最新数据，无需手动导入导出。
+      </p>
+      <div id="ghTutorialWrap" style="margin-bottom:12px">
+        <div onclick="toggleGhTutorial()" style="font-size:12px;color:var(--primary);cursor:pointer;display:flex;align-items:center;gap:4px;user-select:none">
+          <span id="ghTutorialArrow">▶</span> 设置方法（点击查看）
+        </div>
+        <div id="ghTutorialContent" style="display:none;font-size:12px;color:var(--text-sec);background:#f9f5f6;border-radius:10px;padding:10px 12px;margin-top:8px;line-height:1.7">
+          1. 打开 <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color:var(--primary)">GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens</a><br>
+          2. 点「Generate new token」，取个名字（如 love-score）<br>
+          3. Repository access 选「Only select repositories」→ 选一个仓库（或先新建一个空的）<br>
+          4. Permissions → Repository permissions → <b>Contents</b> 设为 <b>Read and write</b><br>
+          5. 生成后复制 token（以 <code>github_pat_</code> 开头），填到下面<br>
+          6. 你和对象填<b>相同的 token 和仓库名</b>即可互通
+        </div>
+      </div>
+      <div class="setting-group">
+        <div class="setting-label">GitHub Token</div>
+        <input class="setting-input" id="ghTokenInput" type="password" placeholder="github_pat_xxxx..." style="font-size:13px">
+      </div>
+      <div class="setting-group">
+        <div class="setting-label">仓库名称（会放在你的 GitHub 账号下）</div>
+        <input class="setting-input" id="ghRepoInput" placeholder="如：love-score-data" style="font-size:13px">
+      </div>
+      <button class="submit-btn" onclick="initGitHub()" id="ghInitBtn">🔗 连接并初始化</button>
+      <div id="ghStatus" style="margin-top:10px;font-size:13px;text-align:center"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🗑️ 危险操作</div>
+      <button class="sync-btn import" style="background:#FFF0F0;color:#E74C3C" onclick="confirmClearAll()">清空所有记录</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tab Bar -->
+<div class="tab-bar">
+  <button class="tab-btn active" data-view="dashboardView" onclick="switchView('dashboardView',this)">
+    <span class="tab-icon">🏠</span>首页
+  </button>
+  <button class="tab-btn" data-view="calendarView" onclick="switchView('calendarView',this)">
+    <span class="tab-icon">📅</span>日历
+  </button>
+  <button class="tab-btn" data-view="settingsView" onclick="switchView('settingsView',this)">
+    <span class="tab-icon">⚙️</span>设置
+  </button>
+</div>
+
+<!-- Confirm Dialog -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title" id="confirmTitle">确认</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="confirm-cancel" onclick="closeConfirm()">取消</button>
+      <button class="confirm-ok" id="confirmOk">确认</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal-content">
+    <div class="modal-title">📥 导入数据</div>
+    <p style="font-size:13px;color:var(--text-sec);margin-bottom:12px">
+      粘贴对象导出的数据，导入后会合并双方的评分记录。
+    </p>
+    <textarea class="sync-textarea" id="importArea" style="height:120px" placeholder="粘贴导出的数据..."></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="sync-btn import" style="flex:1" onclick="closeImportModal()">取消</button>
+      <button class="sync-btn export" style="flex:1;background:var(--primary);color:#fff" onclick="importData()">确认导入</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Constants =====
+const STORAGE_KEY = 'love_score_data';
+const DEFAULT_RULES = [
+  {id:1, icon:'🤥', text:'骗我', pts:-30},
+  {id:2, icon:'🎁', text:'送我礼物', pts:15},
+  {id:3, icon:'🍽️', text:'请吃大餐', pts:10},
+  {id:4, icon:'😤', text:'惹我生气', pts:-15},
+  {id:5, icon:'🫂', text:'暖心陪伴', pts:20},
+  {id:6, icon:'💐', text:'制造惊喜', pts:25},
+  {id:7, icon:'📱', text:'已读不回', pts:-10},
+  {id:8, icon:'🌹', text:'说甜言蜜语', pts:8},
+];
+
+// ===== State =====
+let state = {
+  myName: '我',
+  taName: 'TA',
+  userRole: 'A', // 'A' = 你给对方打分; 'B' = 对方给你打分
+  roleSet: false, // 首次身份选择是否已完成
+  rules: [...DEFAULT_RULES],
+  events: [], // {id, scorer:'A'|'B', target:'A'|'B', delta:number, reason:string, ts:number}
+  scoreType: 'add', // 'add' or 'sub'
+  perspective: 'default', // 'default' = 我评TA; 'flipped' = TA评我（只读）
+  calYear: new Date().getFullYear(),
+  calMonth: new Date().getMonth(),
+  calSelectedDay: null,
+};
+
+// ===== Init =====
+function init() {
+  loadData();
+  const overlay = document.getElementById('welcomeOverlay');
+  if (state.roleSet) {
+    overlay.classList.add('hidden');
+    renderAll();
+  } else {
+    // 显示欢迎页，等用户选择身份
+    overlay.classList.remove('hidden');
+  }
+}
+
+let welcomeSelectedRole = null;
+function selectWelcomeRole(role) {
+  welcomeSelectedRole = role;
+  document.getElementById('welcomeRoleA').classList.toggle('selected', role === 'A');
+  document.getElementById('welcomeRoleB').classList.toggle('selected', role === 'B');
+  document.getElementById('welcomeConfirmBtn').classList.add('active');
+}
+
+function confirmWelcomeRole() {
+  if (!welcomeSelectedRole) return;
+  state.userRole = welcomeSelectedRole;
+  state.roleSet = true;
+  saveData();
+  document.getElementById('welcomeOverlay').classList.add('hidden');
+  renderAll();
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      state.myName = saved.myName || '我';
+      state.taName = saved.taName || 'TA';
+      state.userRole = saved.userRole || 'A';
+      state.roleSet = saved.roleSet || false;
+      state.rules = saved.rules || [...DEFAULT_RULES];
+      state.events = saved.events || [];
+    }
+  } catch(e) { console.error('Load error:', e); }
+}
+
+function saveData() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      myName: state.myName,
+      taName: state.taName,
+      userRole: state.userRole,
+      roleSet: state.roleSet,
+      rules: state.rules,
+      events: state.events,
+    }));
+  } catch(e) { console.error('Save error:', e); }
+}
+
+// ===== Score Calculation =====
+function calcScore(target) {
+  // target: 'A' = the person being scored by me (default view), 'B' = me (flipped view)
+  // In default view: I('A') score TA('B'). So target='B'.
+  // In flipped view: TA('B') scores me('A'). So target='A'.
+  let t = (state.perspective === 'default') ? 'B' : 'A';
+  let sum = 100;
+  state.events.forEach(ev => {
+    if (ev.target === t) sum += ev.delta;
+  });
+  return sum;
+}
+
+function calcScoreFor(target) {
+  let sum = 100;
+  state.events.forEach(ev => {
+    if (ev.target === target) sum += ev.delta;
+  });
+  return sum;
+}
+
+function getDailyScores(target, year, month) {
+  // Returns {day: netChange} for the given month
+  const scores = {};
+  state.events.forEach(ev => {
+    if (ev.target !== target) return;
+    const d = new Date(ev.ts);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const day = d.getDate();
+      scores[day] = (scores[day] || 0) + ev.delta;
+    }
+  });
+  return scores;
+}
+
+function getEventsForDay(target, year, month, day) {
+  return state.events.filter(ev => {
+    if (ev.target !== target) return false;
+    const d = new Date(ev.ts);
+    return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+  }).sort((a,b) => b.ts - a.ts);
+}
+
+// ===== Score Display =====
+function getScoreInfo(score) {
+  if (score < 0) return {rank:'危险警告 🚨', color:'#E74C3C', bg:'#FFF0F0', grad1:'#E74C3C', grad2:'#C0392B'};
+  if (score < 20) return {rank:'急需挽救 😱', color:'#E74C3C', bg:'#FFF0F0', grad1:'#FF6B6B', grad2:'#E74C3C'};
+  if (score < 40) return {rank:'有点危险 😰', color:'#FF9F43', bg:'#FFF8F0', grad1:'#FF9F43', grad2:'#E67E22'};
+  if (score < 60) return {rank:'需要加油 💪', color:'#FECA57', bg:'#FFFFF0', grad1:'#FECA57', grad2:'#F39C12'};
+  if (score < 80) return {rank:'还不错哦 😊', color:'#FF6B81', bg:'#FFF5F7', grad1:'#FF6B81', grad2:'#FF8FA3'};
+  if (score < 100) return {rank:'甜甜蜜蜜 🥰', color:'#FF4757', bg:'#FFF0F3', grad1:'#FF4757', grad2:'#FF6B81'};
+  if (score < 120) return {rank:'超级幸福 💕', color:'#FF1F5A', bg:'#FFE8EE', grad1:'#FF1F5A', grad2:'#FF4757'};
+  return {rank:'满分恋人 👑', color:'#D4A017', bg:'#FFFBF0', grad1:'#D4A017', grad2:'#F7DC6F'};
+}
+
+// ===== Rendering =====
+function renderAll() {
+  renderDashboard();
+  renderCalendar();
+  renderSettings();
+}
+
+function renderDashboard() {
+  const score = calcScore();
+  const info = getScoreInfo(score);
+  const isDefault = state.perspective === 'default';
+  const scoredName = isDefault ? state.taName : state.myName;
+  const scorerName = isDefault ? state.myName : state.taName;
+
+  // Update CSS variables
+  document.documentElement.style.setProperty('--score-color', info.color);
+  document.documentElement.style.setProperty('--bg', info.bg);
+  document.body.style.background = info.bg;
+
+  // Header
+  const roleTag = state.userRole === 'A' ? 'A' : 'B';
+  const dirLabel = isDefault ? `${state.myName} → ${state.taName}` : `${state.taName} → ${state.myName}`;
+  const viewBadge = isDefault ? '' : ' 👀';
+  document.getElementById('headerTitle').textContent = dirLabel + viewBadge;
+  document.getElementById('toggleLabel').textContent = isDefault ? '看TA评我' : '看我评TA';
+
+  // Score label
+  document.getElementById('scoreLabel').textContent = isDefault ? `${state.taName}的分数` : `${state.myName}的分数`;
+  document.getElementById('scoreRank').textContent = info.rank;
+  document.getElementById('scoreRank').style.color = info.color;
+  document.getElementById('scoreBadge').style.color = info.color;
+
+  // Heart fill
+  const pct = Math.max(0, Math.min(100, score)) / 100;
+  const fillEl = document.getElementById('heartFill');
+  const fillH = Math.round(pct * 175);
+  const fillY = 175 - fillH;
+  fillEl.setAttribute('y', fillY);
+  fillEl.setAttribute('height', fillH);
+
+  // Gradient colors
+  document.getElementById('gradStop1').setAttribute('stop-color', info.grad1);
+  document.getElementById('gradStop2').setAttribute('stop-color', info.grad2);
+
+  // Animate score number
+  animateScore(score);
+
+  // Quick actions (only in default view)
+  renderQuickActions();
+
+  // Recent history
+  renderRecentHistory();
+}
+
+let currentDisplayScore = 100;
+let scoreAnimFrame = null;
+function animateScore(target) {
+  if (scoreAnimFrame) cancelAnimationFrame(scoreAnimFrame);
+  const start = currentDisplayScore;
+  const diff = target - start;
+  if (diff === 0) { document.getElementById('scoreBadge').textContent = target; return; }
+  const duration = 600;
+  const startTime = performance.now();
+  function step(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(start + diff * eased);
+    document.getElementById('scoreBadge').textContent = current;
+    currentDisplayScore = current;
+    if (progress < 1) scoreAnimFrame = requestAnimationFrame(step);
+  }
+  scoreAnimFrame = requestAnimationFrame(step);
+}
+
+function renderQuickActions() {
+  const grid = document.getElementById('quickGrid');
+  const isDefault = state.perspective === 'default';
+  // Only show quick actions in default view
+  if (!isDefault) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">切换到「看我评TA」可快捷打分</div>';
+    return;
+  }
+  grid.innerHTML = state.rules.map(r => {
+    const isPos = r.pts > 0;
+    return `<button class="quick-btn ${isPos?'positive':'negative'}" onclick="quickScore(${r.id})">
+      <span class="q-icon">${r.icon}</span>
+      <span class="q-text">${r.text}</span>
+      <span class="q-pts">${isPos?'+':''}${r.pts}</span>
+    </button>`;
+  }).join('');
+}
+
+function renderRecentHistory() {
+  const container = document.getElementById('recentHistory');
+  const target = state.perspective === 'default' ? 'B' : 'A';
+  const events = state.events
+    .filter(ev => ev.target === target)
+    .sort((a,b) => b.ts - a.ts)
+    .slice(0, 10);
+
+  if (events.length === 0) {
+    container.innerHTML = '<div class="empty-state">还没有记录，快来打分吧 💕</div>';
+    return;
+  }
+
+  container.innerHTML = events.map(ev => {
+    const isPos = ev.delta > 0;
+    const scorerName = ev.scorer === state.userRole ? state.myName : state.taName;
+    return `<div class="history-item">
+      <div class="h-dot ${isPos?'pos':'neg'}"></div>
+      <div class="h-info">
+        <div class="h-reason">${ev.reason || (isPos?'加分事件':'减分事件')}</div>
+        <div class="h-time">${formatTime(ev.ts)}</div>
+      </div>
+      <div class="h-scorer">${scorerName}</div>
+      <div class="h-score ${isPos?'pos':'neg'}">${isPos?'+':''}${ev.delta}</div>
+    </div>`;
+  }).join('');
+}
+
+// ===== Calendar =====
+function renderCalendar() {
+  const target = state.perspective === 'default' ? 'B' : 'A';
+  const {calYear: year, calMonth: month} = state;
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  document.getElementById('calTitle').textContent = `${year}年${monthNames[month]}`;
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+  const dailyScores = getDailyScores(target, year, month);
+
+  let html = '';
+  // Empty cells before first day
+  for (let i = 0; i < firstDay; i++) {
+    html += '<div class="cal-day empty"></div>';
+  }
+  // Day cells
+  for (let d = 1; d <= daysInMonth; d++) {
+    const isToday = today.getFullYear() === year && today.getMonth() === month && today.getDate() === d;
+    const hasScore = dailyScores[d] !== undefined;
+    const isSelected = state.calSelectedDay === d;
+    let bgColor = '';
+    let ptsHtml = '';
+
+    if (hasScore) {
+      const net = dailyScores[d];
+      const info = getScoreColor(net);
+      bgColor = `background:${info.bg}`;
+      ptsHtml = `<div class="day-pts" style="color:${info.color}">${net>0?'+':''}${net}</div>`;
+    }
+
+    html += `<div class="cal-day ${isToday?'today':''} ${hasScore?'has-score':''} ${isSelected?'detail-selected':''}" 
+      style="${bgColor}" onclick="selectCalDay(${d})">
+      <span class="day-num">${d}</span>${ptsHtml}
+    </div>`;
+  }
+
+  document.getElementById('calGrid').innerHTML = html;
+
+  // Summary
+  const allNet = Object.values(dailyScores);
+  const totalDays = allNet.length;
+  const totalChange = allNet.reduce((s,v) => s+v, 0);
+  const goodDays = allNet.filter(v => v > 0).length;
+  const badDays = allNet.filter(v => v < 0).length;
+  const currentScore = calcScore();
+
+  document.getElementById('calSummary').innerHTML = `
+    <div class="cal-stat"><div class="stat-num" style="color:var(--score-color)">${currentScore}</div><div class="stat-label">当前分数</div></div>
+    <div class="cal-stat"><div class="stat-num" style="color:#27AE60">${totalChange>0?'+':''}${totalChange}</div><div class="stat-label">本月变化</div></div>
+    <div class="cal-stat"><div class="stat-num" style="color:#FF6B81">${goodDays}</div><div class="stat-label">加分天</div></div>
+    <div class="cal-stat"><div class="stat-num" style="color:#6C5CE7">${badDays}</div><div class="stat-label">减分天</div></div>
+  `;
+}
+
+function getScoreColor(val) {
+  if (val > 0) return {color:'#27AE60', bg:'#E8F8E8'};
+  if (val < 0) return {color:'#E74C3C', bg:'#FDE8E8'};
+  return {color:'#95A5A6', bg:'#F0F0F0'};
+}
+
+function selectCalDay(day) {
+  state.calSelectedDay = day;
+  renderCalendar();
+  showDayDetail(day);
+}
+
+function showDayDetail(day) {
+  const target = state.perspective === 'default' ? 'B' : 'A';
+  const events = getEventsForDay(target, state.calYear, state.calMonth, day);
+  const card = document.getElementById('dayDetailCard');
+  const {calYear: y, calMonth: m} = state;
+
+  document.getElementById('dayDetailTitle').textContent = `${y}年${m+1}月${day}日`;
+
+  if (events.length === 0) {
+    document.getElementById('dayDetailContent').innerHTML = '<div class="empty-state">这天没有记录</div>';
+  } else {
+    document.getElementById('dayDetailContent').innerHTML = events.map(ev => {
+      const isPos = ev.delta > 0;
+      const scorerName = ev.scorer === state.userRole ? state.myName : state.taName;
+      return `<div class="history-item">
+        <div class="h-dot ${isPos?'pos':'neg'}"></div>
+        <div class="h-info">
+          <div class="h-reason">${ev.reason || (isPos?'加分事件':'减分事件')}</div>
+          <div class="h-time">${formatTime(ev.ts)}</div>
+        </div>
+        <div class="h-scorer">${scorerName}</div>
+        <div class="h-score ${isPos?'pos':'neg'}">${isPos?'+':''}${ev.delta}</div>
+      </div>`;
+    }).join('');
+  }
+  card.style.display = 'block';
+}
+
+function closeDayDetail() {
+  document.getElementById('dayDetailCard').style.display = 'none';
+  state.calSelectedDay = null;
+  renderCalendar();
+}
+
+function changeMonth(delta) {
+  state.calMonth += delta;
+  if (state.calMonth > 11) { state.calMonth = 0; state.calYear++; }
+  if (state.calMonth < 0) { state.calMonth = 11; state.calYear--; }
+  state.calSelectedDay = null;
+  document.getElementById('dayDetailCard').style.display = 'none';
+  renderCalendar();
+}
+
+// ===== Settings =====
+function renderSettings() {
+  document.getElementById('myNameInput').value = state.myName;
+  document.getElementById('taNameInput').value = state.taName;
+
+  // Role info (read-only)
+  const roleInfoBox = document.getElementById('roleInfoBox');
+  const myRoleName = state.userRole === 'A' ? '我来评TA' : 'TA来评我';
+  const myAction = state.userRole === 'A' ? `「${state.myName}」给「${state.taName}」打分` : `「${state.taName}」给「${state.myName}」打分`;
+  roleInfoBox.innerHTML = `🎭 我的身份：<b style="color:var(--primary)">${myRoleName}</b><br>${myAction}。切换视角可查看对方评分（只读）。<br><span style="font-size:11px;opacity:.6">身份在首次打开时选定，不可更改。</span>`;
+
+  const rulesList = document.getElementById('rulesList');
+  rulesList.innerHTML = state.rules.map(r => {
+    const isPos = r.pts > 0;
+    return `<div class="rule-item">
+      <span class="rule-icon">${r.icon}</span>
+      <span class="rule-text">${r.text}</span>
+      <span class="rule-pts" style="color:${isPos?'#27AE60':'#E74C3C'}">${isPos?'+':''}${r.pts}</span>
+      <button class="rule-del" onclick="deleteRule(${r.id})">×</button>
+    </div>`;
+  }).join('');
+}
+
+function saveSettings() {
+  state.myName = document.getElementById('myNameInput').value.trim() || '我';
+  state.taName = document.getElementById('taNameInput').value.trim() || 'TA';
+  saveData();
+  renderAll();
+}
+
+function addRule() {
+  const icon = document.getElementById('newRuleIcon').value.trim() || '📌';
+  const text = document.getElementById('newRuleText').value.trim();
+  const pts = parseInt(document.getElementById('newRulePts').value);
+
+  if (!text) { showToast('请输入事件描述'); return; }
+  if (isNaN(pts) || pts === 0) { showToast('请输入有效分值'); return; }
+
+  const maxId = state.rules.reduce((m, r) => Math.max(m, r.id), 0);
+  state.rules.push({id: maxId + 1, icon, text, pts});
+  saveData();
+  renderSettings();
+  renderQuickActions();
+
+  document.getElementById('newRuleIcon').value = '';
+  document.getElementById('newRuleText').value = '';
+  document.getElementById('newRulePts').value = '';
+  showToast('规则已添加 ✅');
+}
+
+function deleteRule(id) {
+  state.rules = state.rules.filter(r => r.id !== id);
+  saveData();
+  renderSettings();
+  renderQuickActions();
+  showToast('规则已删除');
+}
+
+// ===== Actions =====
+function togglePerspective() {
+  state.perspective = state.perspective === 'default' ? 'flipped' : 'default';
+  const btn = document.getElementById('toggleBtn');
+  btn.classList.toggle('flipped', state.perspective === 'flipped');
+  document.getElementById('dayDetailCard').style.display = 'none';
+  state.calSelectedDay = null;
+  renderAll();
+}
+
+function setScoreType(type) {
+  state.scoreType = type;
+  const btns = document.querySelectorAll('#scoreToggle button');
+  btns.forEach(b => {
+    b.className = '';
+    if (b.dataset.type === type) {
+      b.className = type === 'add' ? 'active-add' : 'active-sub';
+    }
+  });
+}
+
+function quickScore(ruleId) {
+  const rule = state.rules.find(r => r.id === ruleId);
+  if (!rule) return;
+  if (state.perspective === 'flipped') { showToast('👀 当前是查看模式，不能打分哦'); return; }
+
+  const scorer = state.userRole;
+  const target = state.userRole === 'A' ? 'B' : 'A';
+
+  showConfirm(
+    `${rule.icon} ${rule.text}`,
+    `确定要${rule.pts > 0 ? '加' : '减'} <b>${Math.abs(rule.pts)}</b> 分吗？`,
+    () => {
+      addEvent(scorer, target, rule.pts, `${rule.icon} ${rule.text}`);
+    }
+  );
+}
+
+function submitCustomScore() {
+  if (state.perspective === 'flipped') { showToast('👀 当前是查看模式，不能打分哦'); return; }
+  const pts = parseInt(document.getElementById('customPoints').value);
+  const reason = document.getElementById('customReason').value.trim();
+
+  if (isNaN(pts) || pts <= 0) { showToast('请输入有效的分数'); return; }
+
+  const delta = state.scoreType === 'add' ? pts : -pts;
+  const scorer = state.userRole;
+  const target = state.userRole === 'A' ? 'B' : 'A';
+  const icon = delta > 0 ? '❤️' : '💔';
+  const label = delta > 0 ? '加分' : '减分';
+
+  addEvent(scorer, target, delta, reason || `${icon} ${label}${Math.abs(delta)}分`);
+
+  document.getElementById('customPoints').value = '';
+  document.getElementById('customReason').value = '';
+}
+
+function addEvent(scorer, target, delta, reason) {
+  state.events.push({
+    id: Date.now(),
+    scorer,
+    target,
+    delta,
+    reason,
+    ts: Date.now(),
+  });
+  saveData();
+
+  // Show floating score animation
+  showScoreFloat(delta);
+
+  // Pulse heart
+  const wrap = document.getElementById('heartWrap');
+  wrap.classList.remove('heart-pulse');
+  void wrap.offsetWidth;
+  wrap.classList.add('heart-pulse');
+
+  renderAll();
+
+  // Auto-sync to GitHub after scoring
+  if (isGhConfigured()) {
+    autoSync();
+  }
+}
+
+function showScoreFloat(delta) {
+  const wrap = document.getElementById('heartWrap');
+  const el = document.createElement('div');
+  el.className = 'score-change';
+  el.textContent = (delta > 0 ? '+' : '') + delta;
+  el.style.color = delta > 0 ? '#FF6B81' : '#6C5CE7';
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 1300);
+}
+
+function pulseHeart() {
+  const wrap = document.getElementById('heartWrap');
+  wrap.classList.remove('heart-pulse');
+  void wrap.offsetWidth;
+  wrap.classList.add('heart-pulse');
+}
+
+// ===== View Switching =====
+function switchView(viewId, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(viewId).classList.add('active');
+  btn.classList.add('active');
+  if (viewId === 'calendarView') renderCalendar();
+}
+
+// ===== Data Sync =====
+function exportData() {
+  const data = {
+    myName: state.myName,
+    taName: state.taName,
+    rules: state.rules,
+    events: state.events,
+    exportTime: Date.now(),
+    version: 1,
+  };
+  const json = JSON.stringify(data);
+  const encoded = btoa(unescape(encodeURIComponent(json)));
+  document.getElementById('exportArea').value = encoded;
+
+  // Also try to copy to clipboard
+  try {
+    navigator.clipboard.writeText(encoded).then(() => {
+      showToast('数据已复制到剪贴板 📋');
+    }).catch(() => {
+      showToast('数据已生成，请手动复制');
+    });
+  } catch(e) {
+    showToast('数据已生成，请手动复制');
+  }
+}
+
+function showImportModal() {
+  document.getElementById('importModal').classList.add('show');
+  document.getElementById('importArea').value = '';
+}
+
+function closeImportModal() {
+  document.getElementById('importModal').classList.remove('show');
+}
+
+function importData() {
+  const raw = document.getElementById('importArea').value.trim();
+  if (!raw) { showToast('请粘贴数据'); return; }
+
+  try {
+    const json = decodeURIComponent(escape(atob(raw)));
+    const data = JSON.parse(json);
+
+    if (!data.events || !Array.isArray(data.events)) {
+      showToast('数据格式不正确');
+      return;
+    }
+
+    // Merge events (deduplicate by id)
+    const existingIds = new Set(state.events.map(e => e.id));
+    let added = 0;
+    data.events.forEach(ev => {
+      if (!existingIds.has(ev.id)) {
+        state.events.push(ev);
+        added++;
+      }
+    });
+
+    // Merge rules
+    if (data.rules) {
+      const existingRuleIds = new Set(state.rules.map(r => r.id));
+      data.rules.forEach(r => {
+        if (!existingRuleIds.has(r.id)) {
+          state.rules.push(r);
+        }
+      });
+    }
+
+    saveData();
+    renderAll();
+    closeImportModal();
+    showToast(`导入成功！新增 ${added} 条记录 ✅`);
+  } catch(e) {
+    showToast('数据解析失败，请检查格式');
+    console.error(e);
+  }
+}
+
+function confirmClearAll() {
+  showConfirm(
+    '⚠️ 清空所有记录',
+    '确定要清空所有评分记录吗？此操作不可恢复！<br>建议先导出数据备份。',
+    () => {
+      state.events = [];
+      saveData();
+      renderAll();
+      showToast('已清空所有记录');
+    }
+  );
+}
+
+// ===== Helpers =====
+function formatTime(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const diff = now - d;
+
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return `${Math.floor(diff/60000)}分钟前`;
+  if (diff < 86400000 && d.getDate() === now.getDate()) {
+    return `今天 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.getFullYear() === yesterday.getFullYear() && d.getMonth() === yesterday.getMonth() && d.getDate() === yesterday.getDate()) {
+    return `昨天 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  if (d.getFullYear() === now.getFullYear()) {
+    return `${d.getMonth()+1}月${d.getDate()}日 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+  return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+// ===== Confirm Dialog =====
+let confirmCallback = null;
+function showConfirm(title, msg, onOk) {
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMsg').innerHTML = msg;
+  confirmCallback = onOk;
+  document.getElementById('confirmOverlay').classList.add('show');
+  document.getElementById('confirmOk').onclick = () => {
+    const cb = confirmCallback;
+    closeConfirm();
+    if (cb) cb();
+  };
+}
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('show');
+  confirmCallback = null;
+}
+
+// ===== Toast =====
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+// ===== GitHub Sync =====
+const GH_CONFIG_KEY = 'love_score_gh';
+let ghConfig = { token: '', repo: '', owner: '' };
+let ghSha = null; // current file SHA for updates
+let lastSyncTime = 0;
+let syncInProgress = false;
+
+function loadGhConfig() {
+  try {
+    const raw = localStorage.getItem(GH_CONFIG_KEY);
+    if (raw) ghConfig = JSON.parse(raw);
+  } catch(e) {}
+}
+function saveGhConfig() {
+  localStorage.setItem(GH_CONFIG_KEY, JSON.stringify(ghConfig));
+}
+
+function isGhConfigured() {
+  return ghConfig.token && ghConfig.repo && ghConfig.owner;
+}
+
+function updateSyncBadge(status, text) {
+  const badge = document.getElementById('syncBadge');
+  if (!badge) return;
+  badge.className = 'sync-badge';
+  if (status === 'syncing') {
+    badge.classList.add('syncing');
+    badge.innerHTML = '<span class="sync-spinning">🔄</span> 同步中';
+  } else if (status === 'error') {
+    badge.classList.add('error');
+    badge.textContent = '⚠️ 同步失败';
+  } else if (status === 'ok') {
+    badge.textContent = text || '✅ 已同步';
+    setTimeout(() => { updateSyncTime(); }, 3000);
+  } else if (status === 'off') {
+    badge.textContent = '🔌 未连接';
+    badge.style.display = 'none';
+  } else {
+    badge.textContent = text || '';
+  }
+}
+
+function updateSyncTime() {
+  const badge = document.getElementById('syncBadge');
+  if (!badge || !isGhConfigured()) return;
+  badge.style.display = '';
+  if (lastSyncTime) {
+    const d = new Date(lastSyncTime);
+    badge.textContent = `🔄 ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    badge.textContent = '🔄 未同步';
+  }
+}
+
+function toggleGhTutorial() {
+  const c = document.getElementById('ghTutorialContent');
+  const a = document.getElementById('ghTutorialArrow');
+  const vis = c.style.display === 'none';
+  c.style.display = vis ? 'block' : 'none';
+  a.textContent = vis ? '▼' : '▶';
+}
+
+async function ghFetchWithProxy(url, options) {
+  try {
+    const res = await fetch(url, options);
+    return res;
+  } catch(e) {
+    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
+    return await fetch(proxyUrl, options);
+  }
+}
+
+async function ghFetchFile() {
+  const { token, owner, repo } = ghConfig;
+  const res = await ghFetchWithProxy(
+    `https://api.github.com/repos/${owner}/${repo}/contents/data/couple.json`,
+    { headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' } }
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`GitHub API error: ${res.status}`);
+  return await res.json();
+}
+
+async function ghWriteFile(content, sha) {
+  const { token, owner, repo } = ghConfig;
+  const body = {
+    message: `sync ${new Date().toISOString()}`,
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(content)))),
+  };
+  if (sha) body.sha = sha;
+  const res = await ghFetchWithProxy(
+    `https://api.github.com/repos/${owner}/${repo}/contents/data/couple.json`,
+    {
+      method: 'PUT',
+      headers: {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Write failed: ${res.status} - ${errText}`);
+  }
+  const result = await res.json();
+  ghSha = result.content.sha;
+  return result;
+}
+
+async function ghCreateRepo(name) {
+  const res = await ghFetchWithProxy('https://api.github.com/user/repos', {
+    method: 'POST',
+    headers: {
+      'Authorization': `token ${ghConfig.token}`,
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      name: name,
+      private: true,
+      auto_init: true,
+      description: '恋爱评分同步数据'
+    }),
+  });
+  if (!res.ok) throw new Error(`Create repo failed: ${res.status}`);
+  return await res.json();
+}
+
+async function ghGetUser() {
+  const res = await ghFetchWithProxy('https://api.github.com/user', {
+    headers: {
+      'Authorization': `token ${ghConfig.token}`,
+      'Accept': 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }
+  });
+  if (!res.ok) {
+    let detail = '';
+    try { const err = await res.json(); detail = err.message || ''; } catch(e) {}
+    throw new Error(`GitHub 认证失败 (${res.status})${detail ? ': ' + detail : ''}。请检查 token 是否正确复制，以及是否给了 Metadata: Read 权限。`);
+  }
+  const data = await res.json();
+  return data.login;
+}
+
+async function ghRepoExists(name, owner) {
+  const res = await ghFetchWithProxy(`https://api.github.com/repos/${owner}/${name}`, {
+    headers: { 'Authorization': `token ${ghConfig.token}`, 'Accept': 'application/vnd.github+json' }
+  });
+  return res.ok;
+}
+
+// ===== Sync Core =====
+function getLocalSyncData() {
+  return {
+    myName: state.myName,
+    taName: state.taName,
+    rules: state.rules,
+    eventsA: state.events.filter(e => e.scorer === 'A'),
+    eventsB: state.events.filter(e => e.scorer === 'B'),
+    lastModified: Date.now(),
+    version: 3,
+  };
+}
+
+function mergeEventData(remoteEvents) {
+  const localIds = new Set(state.events.map(e => String(e.id)));
+  let newCount = 0;
+  remoteEvents.forEach(ev => {
+    if (!localIds.has(String(ev.id))) {
+      state.events.push(ev);
+      newCount++;
+    }
+  });
+  return newCount;
+}
+
+async function pushToGitHub() {
+  const data = getLocalSyncData();
+  const result = await ghWriteFile(data, ghSha);
+  lastSyncTime = Date.now();
+  return result;
+}
+
+async function pullFromGitHub() {
+  const fileData = await ghFetchFile();
+  if (!fileData) return 0;
+  ghSha = fileData.sha;
+  const json = decodeURIComponent(escape(atob(fileData.content)));
+  const remote = JSON.parse(json);
+  // v3 format: eventsA / eventsB separated
+  const eventsA = remote.eventsA || [];
+  const eventsB = remote.eventsB || [];
+  const allRemote = [
+    ...eventsA.map(e => ({...e, scorer: 'A', target: 'B'})),
+    ...eventsB.map(e => ({...e, scorer: 'B', target: 'A'})),
+  ];
+  const newCount = mergeEventData(allRemote);
+  if (newCount > 0) saveData();
+  lastSyncTime = Date.now();
+  return newCount;
+}
+
+async function autoSync() {
+  if (!isGhConfigured() || syncInProgress) return;
+  syncInProgress = true;
+  updateSyncBadge('syncing');
+  try {
+    await pullFromGitHub();
+    await pushToGitHub();
+    updateSyncTime();
+  } catch(e) {
+    console.error('Sync error:', e);
+    updateSyncBadge('error');
+  }
+  syncInProgress = false;
+}
+
+async function manualSync() {
+  if (!isGhConfigured()) {
+    switchView('settingsView', document.querySelector('[data-view="settingsView"]'));
+    showToast('请先配置 GitHub 同步');
+    return;
+  }
+  await autoSync();
+  renderAll();
+  showToast('✅ 同步完成');
+}
+
+// ===== GitHub Init =====
+async function initGitHub() {
+  const token = document.getElementById('ghTokenInput').value.trim();
+  const repo = document.getElementById('ghRepoInput').value.trim();
+  const btn = document.getElementById('ghInitBtn');
+  const status = document.getElementById('ghStatus');
+
+  if (!token) { showToast('请输入 GitHub Token'); return; }
+  if (!repo) { showToast('请输入仓库名称'); return; }
+  // Clean token: remove whitespace, newlines
+  const cleanToken = token.replace(/\s+/g, '').trim();
+  if (cleanToken.length < 20) { showToast('Token 格式不对，请检查是否完整复制'); return; }
+
+  btn.textContent = '⏳ 连接中...';
+  btn.disabled = true;
+  status.textContent = '';
+
+  try {
+    // 1. Get username
+    status.textContent = '🔍 获取 GitHub 用户信息...';
+    ghConfig = { token: cleanToken, repo, owner: '' };
+    const username = await ghGetUser();
+    ghConfig.owner = username;
+
+    // 2. Check/create repo
+    status.textContent = `📦 检查仓库 ${repo}...`;
+    const exists = await ghRepoExists(repo, username);
+    if (!exists) {
+      status.textContent = '📦 创建私人仓库...';
+      await ghCreateRepo(repo);
+      await new Promise(r => setTimeout(r, 2000)); // wait for repo to be ready
+    }
+
+    // 3. Try to pull existing data
+    status.textContent = '🔄 检查云端数据...';
+    try {
+      const newCount = await pullFromGitHub();
+      if (newCount > 0) {
+        saveData();
+        status.textContent = `✅ 已连接！从云端同步了 ${newCount} 条新记录`;
+      } else {
+        status.textContent = '✅ 已连接！云端暂无数据，将上传当前数据';
+        await pushToGitHub();
+      }
+    } catch(e) {
+      // File doesn't exist yet, push initial data
+      status.textContent = '📤 初始化云端数据...';
+      await pushToGitHub();
+      status.textContent = '✅ 已连接并初始化完成！';
+    }
+
+    saveGhConfig();
+    updateSyncTime();
+    renderAll();
+    showToast('✅ GitHub 同步已开启！');
+
+  } catch(e) {
+    console.error('GitHub init error:', e);
+    status.textContent = `❌ 连接失败：${e.message}`;
+    status.style.color = '#E74C3C';
+  }
+  btn.textContent = '🔗 连接并初始化';
+  btn.disabled = false;
+}
+
+function renderGhSettings() {
+  loadGhConfig();
+  if (isGhConfigured()) {
+    document.getElementById('ghTokenInput').value = ghConfig.token;
+    document.getElementById('ghRepoInput').value = ghConfig.repo;
+    document.getElementById('ghStatus').textContent = `✅ 已连接：${ghConfig.owner}/${ghConfig.repo}`;
+    document.getElementById('ghStatus').style.color = '#27AE60';
+    document.getElementById('ghInitBtn').textContent = '🔄 重新连接';
+  }
+}
+
+// Auto-sync on page visibility change (when user comes back to the tab)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && isGhConfigured()) {
+    autoSync().then(() => renderAll());
+  }
+});
+
+// Auto-sync every 60 seconds when tab is active
+setInterval(() => {
+  if (isGhConfigured() && document.visibilityState === 'visible') {
+    autoSync().then(() => renderAll());
+  }
+}, 60000);
+
+// ===== Start =====
+loadGhConfig();
+init();
+renderGhSettings();
+if (isGhConfigured()) {
+  updateSyncTime();
+  // Initial sync on load
+  autoSync().then(() => renderAll());
+} else {
+  updateSyncBadge('off');
+}
+</script>
+</body>
 </html>
