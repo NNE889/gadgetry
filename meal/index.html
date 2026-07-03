@@ -848,8 +848,8 @@ async function initGitHub(){
       var newCount=await pullFromGitHub();
       var localEntries=await getAllEntries();
       if(newCount>0){status.textContent='✅ 已连接！从云端同步了 '+newCount+' 条新记录';}
-      else if(localEntries.length===0){status.textContent='📤 本地无数据，初始化云端...';await pushToGitHub();}
-      else{status.textContent='✅ 已连接！数据已同步';}
+      else if(localEntries.length===0){status.textContent='📤 本地无数据，云端也无数据';}
+      else{status.textContent='📤 上传本地数据到云端...';await pushToGitHub();status.textContent='✅ 已连接！本地数据已上传到云端';}
     }catch(e){
       var localEntries2=await getAllEntries();
       if(localEntries2.length>0){status.textContent='📤 初始化云端数据...';await pushToGitHub();status.textContent='✅ 已连接并初始化完成！';}
