@@ -343,13 +343,17 @@ body{
   <div class="welcome-sub">请选择你的身份<br><span style="font-size:12px;opacity:.7">这个选择会保存，之后无法更改哦</span></div>
   <div class="welcome-role-card" id="welcomeRoleA" onclick="selectWelcomeRole('A')">
     <div class="welcome-role-emoji">💗</div>
-    <div class="welcome-role-title">我来评 TA</div>
+    <div class="welcome-role-title" id="welcomeRoleATitle">我来评 TA</div>
     <div class="welcome-role-desc">你来给对象打分，可以加减分；<br>切换视角可看到对象给你打的分数（只读）</div>
   </div>
   <div class="welcome-role-card" id="welcomeRoleB" onclick="selectWelcomeRole('B')">
     <div class="welcome-role-emoji">💙</div>
-    <div class="welcome-role-title">TA 来评我</div>
+    <div class="welcome-role-title" id="welcomeRoleBTitle">TA 来评我</div>
     <div class="welcome-role-desc">对象给你打分，你可以查看分数；<br>切换视角可看到 TA 给你评的分（只读）</div>
+  </div>
+  <div id="welcomeNameStep" style="display:none;margin:12px 0;text-align:center">
+    <div style="font-size:14px;margin-bottom:8px;color:#666">请输入你的名字：</div>
+    <input id="welcomeNameInput" type="text" placeholder="你的名字" style="width:200px;padding:10px 14px;border:2px solid var(--primary);border-radius:12px;font-size:16px;text-align:center;outline:none;background:#fff">
   </div>
   <button class="welcome-confirm-btn" id="welcomeConfirmBtn" onclick="confirmWelcomeRole()">开始使用 💕</button>
   <div class="welcome-note">⚠️ 身份选择后不可更改，请和对象商量好各自角色</div>
@@ -607,15 +611,30 @@ function selectWelcomeRole(role) {
   document.getElementById('welcomeRoleA').classList.toggle('selected', role === 'A');
   document.getElementById('welcomeRoleB').classList.toggle('selected', role === 'B');
   document.getElementById('welcomeConfirmBtn').classList.add('active');
+  // Show name input step
+  document.getElementById('welcomeNameStep').style.display = 'block';
+  document.getElementById('welcomeNameInput').focus();
 }
 
 function confirmWelcomeRole() {
   if (!welcomeSelectedRole) return;
+  const nameInput = document.getElementById('welcomeNameInput');
+  const myName = nameInput.value.trim();
+  if (!myName) { showToast('请输入你的名字'); nameInput.focus(); return; }
   state.userRole = welcomeSelectedRole;
+  state.myName = myName;
   state.roleSet = true;
   saveData();
   document.getElementById('welcomeOverlay').classList.add('hidden');
   renderAll();
+  // If GitHub is configured, pull partner's name
+  if (isGhConfigured()) {
+    pullFromGitHub().then(() => {
+      saveData();
+      renderAll();
+      showToast('✅ 已同步对方信息');
+    });
+  }
 }
 
 function loadData() {
@@ -1401,14 +1420,17 @@ async function ghRepoExists(name, owner) {
 
 // ===== Sync Core =====
 function getLocalSyncData() {
+  // Store names by role so both users' names are preserved
+  const nameA = state.userRole === 'A' ? state.myName : state.taName;
+  const nameB = state.userRole === 'A' ? state.taName : state.myName;
   return {
-    myName: state.myName,
-    taName: state.taName,
+    nameA: nameA,
+    nameB: nameB,
     rules: state.rules,
     eventsA: state.events.filter(e => e.scorer === 'A'),
     eventsB: state.events.filter(e => e.scorer === 'B'),
     lastModified: Date.now(),
-    version: 3,
+    version: 4,
   };
 }
 
@@ -1437,7 +1459,7 @@ async function pullFromGitHub() {
   ghSha = fileData.sha;
   const json = decodeURIComponent(escape(atob(fileData.content)));
   const remote = JSON.parse(json);
-  // v3 format: eventsA / eventsB separated
+  // v4 format: eventsA / eventsB separated, nameA / nameB by role
   const eventsA = remote.eventsA || [];
   const eventsB = remote.eventsB || [];
   const allRemote = [
@@ -1445,6 +1467,26 @@ async function pullFromGitHub() {
     ...eventsB.map(e => ({...e, scorer: 'B', target: 'A'})),
   ];
   const newCount = mergeEventData(allRemote);
+  // Merge names from remote (only update the partner's name, keep own name)
+  if (remote.nameA || remote.nameB) {
+    if (state.userRole === 'A') {
+      // I'm A: my name is nameA, partner's name is nameB
+      if (remote.nameB && state.taName !== remote.nameB) {
+        state.taName = remote.nameB;
+        saveData();
+      }
+    } else {
+      // I'm B: my name is nameB, partner's name is nameA
+      if (remote.nameA && state.taName !== remote.nameA) {
+        state.taName = remote.nameA;
+        saveData();
+      }
+    }
+  }
+  // Also handle legacy v3 format (myName/taName)
+  if (!remote.nameA && remote.myName) {
+    // Old format - just try to pick up partner name
+  }
   if (newCount > 0) saveData();
   lastSyncTime = Date.now();
   return newCount;
