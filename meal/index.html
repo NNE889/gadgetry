@@ -743,7 +743,7 @@ async function ghFetchFile(){
   // If content is included (< 1MB), decode and return with parsed data
   if(meta.content){
     try{
-      var json=decodeURIComponent(escape(atob(meta.content)));
+      var json=new TextDecoder().decode(Uint8Array.from(atob(meta.content),function(c){return c.charCodeAt(0);}));
       meta.parsedData=JSON.parse(json);
     }catch(e){console.error('ghFetchFile: Failed to parse content from contents API:',e);throw new Error('Failed to parse cloud data');}
     return meta;
@@ -756,7 +756,7 @@ async function ghFetchFile(){
     if(!blobRes.ok){var blobErr=await blobRes.text();console.error('ghFetchFile: Blob API failed ('+blobRes.status+')',blobUrl,blobErr);throw new Error('Blob API error: '+blobRes.status);}
     var blobData=await blobRes.json();
     if(!blobData.content||blobData.encoding!=='base64'){console.error('ghFetchFile: Unexpected blob response',blobData);throw new Error('Blob API returned unexpected format');}
-    var decoded=atob(blobData.content);
+    var decoded=new TextDecoder().decode(Uint8Array.from(atob(blobData.content),function(c){return c.charCodeAt(0);}));
     meta.parsedData=JSON.parse(decoded);
     return meta;
   }catch(e){
@@ -769,7 +769,7 @@ async function ghFetchFile(){
 async function ghWriteFile(content,sha){
   var token=ghConfig.token,owner=ghConfig.owner,repo=ghConfig.repo;
   var jsonStr=JSON.stringify(content);
-  var encoded=btoa(unescape(encodeURIComponent(jsonStr)));
+  var encoded=btoa(String.fromCharCode.apply(null,new TextEncoder().encode(jsonStr)));
   var sizeMB=(encoded.length/(1024*1024)).toFixed(2);
   if(parseFloat(sizeMB)>5){console.warn('ghWriteFile: base64 content is '+sizeMB+'MB (>5MB), GitHub API limit is 100MB. Attempting write anyway.');}
   var body={message:'sync meal '+new Date().toISOString(),content:encoded};
@@ -805,7 +805,7 @@ async function pullFromGitHub(cachedFileData){
   var remote=fileData.parsedData;
   if(!remote){
     try{
-      var json=decodeURIComponent(escape(atob(fileData.content)));
+      var json=new TextDecoder().decode(Uint8Array.from(atob(fileData.content),function(c){return c.charCodeAt(0);}));
       remote=JSON.parse(json);
     }catch(e){console.error('pullFromGitHub: Failed to parse file content:',e);throw new Error('Failed to parse cloud data');}
   }
@@ -838,7 +838,7 @@ async function autoSync(){
       ghSha=remote.sha;
       var parsed=remote.parsedData;
       if(!parsed){
-        var json=decodeURIComponent(escape(atob(remote.content)));
+        var json=new TextDecoder().decode(Uint8Array.from(atob(remote.content),function(c){return c.charCodeAt(0);}));
         parsed=JSON.parse(json);
       }
       remoteCount=(parsed.entries||[]).length;
