@@ -740,16 +740,27 @@ async function ghFetchFile(){
   if(res.status===404)return null;
   if(!res.ok)throw new Error('GitHub API error: '+res.status);
   var meta=await res.json();
-  // If content is included (< 1MB), return as-is
-  if(meta.content){return meta;}
-  // File too large (>1MB), use download_url to get content
+  // If content is included (< 1MB), decode and return with parsed data
+  if(meta.content){
+    try{
+      var json=decodeURIComponent(escape(atob(meta.content)));
+      meta.parsedData=JSON.parse(json);
+    }catch(e){console.error('Failed to parse content:',e);throw new Error('Failed to parse cloud data');}
+    return meta;
+  }
+  // File too large (>1MB), use download_url to get content directly
   if(!meta.download_url)throw new Error('No download_url for large file');
-  var contentRes=await ghFetchWithProxy(meta.download_url,{headers:{'Authorization':'token '+token}});
-  if(!contentRes.ok)throw new Error('Failed to download large file: '+contentRes.status);
-  var text=await contentRes.text();
-  // Convert to base64 to match expected format
-  meta.content=btoa(unescape(encodeURIComponent(text)));
-  return meta;
+  try{
+    // For public repos, don't need auth token for raw content
+    var contentRes=await fetch(meta.download_url);
+    if(!contentRes.ok)throw new Error('Download failed: '+contentRes.status);
+    var text=await contentRes.text();
+    meta.parsedData=JSON.parse(text);
+    return meta;
+  }catch(e){
+    console.error('Failed to download large file:',e);
+    throw new Error('Failed to download large file: '+e.message);
+  }
 }
 
 async function ghWriteFile(content,sha){
@@ -777,8 +788,12 @@ async function pullFromGitHub(){
   var fileData=await ghFetchFile();
   if(!fileData)return 0;
   ghSha=fileData.sha;
-  var json=decodeURIComponent(escape(atob(fileData.content)));
-  var remote=JSON.parse(json);
+  // Use pre-parsed data if available, otherwise parse from content
+  var remote=fileData.parsedData;
+  if(!remote){
+    var json=decodeURIComponent(escape(atob(fileData.content)));
+    remote=JSON.parse(json);
+  }
   var remoteEntries=remote.entries||[];
   if(remote.customTags&&Array.isArray(remote.customTags)){remote.customTags.forEach(function(t){addCustomTag(t);});}
   var existing=await getAllEntries();
@@ -796,7 +811,7 @@ async function pullFromGitHub(){
 }
 
 async function autoSync(){
-  if(!isGhConfigured()||syncInProgress)return;
+  if(!isGhConfigured()||syncInProgress)return false;
   syncInProgress=true;
   updateSyncBadge('syncing');
   try{
@@ -806,8 +821,11 @@ async function autoSync(){
     var remoteCount=0;
     if(remote){
       ghSha=remote.sha;
-      var json=decodeURIComponent(escape(atob(remote.content)));
-      var parsed=JSON.parse(json);
+      var parsed=remote.parsedData;
+      if(!parsed){
+        var json=decodeURIComponent(escape(atob(remote.content)));
+        parsed=JSON.parse(json);
+      }
       remoteCount=(parsed.entries||[]).length;
     }
     // Always pull cloud data
@@ -819,9 +837,11 @@ async function autoSync(){
       await pushToGitHub();
     }
     updateSyncTime();
+    updateSyncBadge('synced');
+    syncInProgress=false;
+    return true;
   }
-  catch(e){console.error('Sync error:',e);updateSyncBadge('error');}
-  syncInProgress=false;
+  catch(e){console.error('Sync error:',e);updateSyncBadge('error');syncInProgress=false;return false;}
 }
 
 function scheduleAutoSync(){
@@ -832,9 +852,10 @@ function scheduleAutoSync(){
 
 async function manualSync(){
   if(!isGhConfigured()){openSettingsModal();showToast('请先配置 GitHub 同步');return;}
-  await autoSync();
+  var ok=await autoSync();
   renderList();updateCounts();
-  showToast('✅ 同步完成');
+  if(ok){showToast('✅ 同步完成');}
+  else{showToast('❌ 同步失败，请打开浏览器控制台查看错误信息');}
 }
 
 async function initGitHub(){
