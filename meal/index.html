@@ -922,14 +922,15 @@ function renderGhSettings(){
   }
 }
 
-document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&isGhConfigured()){autoSync().then(function(){renderList();updateCounts();});}});
-setInterval(function(){if(isGhConfigured()&&document.visibilityState==='visible'){autoSync().then(function(){renderList();updateCounts();});}},60000);
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&isGhConfigured()){Promise.resolve(init()).then(function(){autoSync().then(function(){renderList();updateCounts();});});}});
+setInterval(function(){if(isGhConfigured()&&document.visibilityState==='visible'){Promise.resolve(init()).then(function(){autoSync().then(function(){renderList();updateCounts();});});}},60000);
 
 loadGhConfig();
-init();
 renderGhSettings();
-if(isGhConfigured()){updateSyncTime();autoSync().then(function(){renderList();updateCounts();});}
-else{updateSyncBadge('off');}
+init().then(function(){
+  if(isGhConfigured()){updateSyncTime();autoSync().then(function(){renderList();updateCounts();});}
+  else{updateSyncBadge('off');}
+});
 </script>
 </body>
 </html>
