@@ -735,10 +735,21 @@ async function ghFetchWithProxy(url,options){
 
 async function ghFetchFile(){
   var token=ghConfig.token,owner=ghConfig.owner,repo=ghConfig.repo;
+  // First get metadata (sha, download_url)
   var res=await ghFetchWithProxy('https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/meal.json',{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}});
   if(res.status===404)return null;
   if(!res.ok)throw new Error('GitHub API error: '+res.status);
-  return await res.json();
+  var meta=await res.json();
+  // If content is included (< 1MB), return as-is
+  if(meta.content){return meta;}
+  // File too large (>1MB), use download_url to get content
+  if(!meta.download_url)throw new Error('No download_url for large file');
+  var contentRes=await ghFetchWithProxy(meta.download_url,{headers:{'Authorization':'token '+token}});
+  if(!contentRes.ok)throw new Error('Failed to download large file: '+contentRes.status);
+  var text=await contentRes.text();
+  // Convert to base64 to match expected format
+  meta.content=btoa(unescape(encodeURIComponent(text)));
+  return meta;
 }
 
 async function ghWriteFile(content,sha){
