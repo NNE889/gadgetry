@@ -774,10 +774,21 @@ async function ghWriteFile(content,sha){
   var encoded=btoa(binary);
   var sizeMB=(encoded.length/(1024*1024)).toFixed(2);
   if(parseFloat(sizeMB)>5){console.warn('ghWriteFile: base64 content is '+sizeMB+'MB (>5MB), GitHub API limit is 100MB. Attempting write anyway.');}
-  var body={message:'sync meal '+new Date().toISOString(),content:encoded};
-  if(sha)body.sha=sha;
   var putUrl='https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/meal.json';
-  var res=await ghFetchWithProxy(putUrl,{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+  async function doPut(putSha){
+    var body={message:'sync meal '+new Date().toISOString(),content:encoded};
+    if(putSha)body.sha=putSha;
+    return await ghFetchWithProxy(putUrl,{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+  }
+  var res=await doPut(sha);
+  if(res.status===409){
+    console.warn('ghWriteFile: SHA conflict, re-fetching current SHA...');
+    var curRes=await ghFetchWithProxy(putUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}});
+    if(!curRes.ok)throw new Error('Failed to re-fetch SHA after 409');
+    var curMeta=await curRes.json();
+    ghSha=curMeta.sha;
+    res=await doPut(ghSha);
+  }
   if(!res.ok){var errText=await res.text();console.error('ghWriteFile: PUT failed ('+res.status+')',putUrl,errText);throw new Error('Write failed: '+res.status+' - '+errText);}
   var result=await res.json();
   ghSha=result.content.sha;
