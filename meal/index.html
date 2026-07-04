@@ -735,40 +735,48 @@ async function ghFetchWithProxy(url,options){
 
 async function ghFetchFile(){
   var token=ghConfig.token,owner=ghConfig.owner,repo=ghConfig.repo;
-  // First get metadata (sha, download_url)
-  var res=await ghFetchWithProxy('https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/meal.json',{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}});
+  var contentsUrl='https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/meal.json';
+  var res=await ghFetchWithProxy(contentsUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}});
   if(res.status===404)return null;
-  if(!res.ok)throw new Error('GitHub API error: '+res.status);
+  if(!res.ok){var errBody=await res.text();console.error('ghFetchFile: contents API failed ('+res.status+')',contentsUrl,errBody);throw new Error('GitHub API error: '+res.status);}
   var meta=await res.json();
   // If content is included (< 1MB), decode and return with parsed data
   if(meta.content){
     try{
       var json=decodeURIComponent(escape(atob(meta.content)));
       meta.parsedData=JSON.parse(json);
-    }catch(e){console.error('Failed to parse content:',e);throw new Error('Failed to parse cloud data');}
+    }catch(e){console.error('ghFetchFile: Failed to parse content from contents API:',e);throw new Error('Failed to parse cloud data');}
     return meta;
   }
-  // File too large (>1MB), use download_url to get content directly
-  if(!meta.download_url)throw new Error('No download_url for large file');
+  // File > 1MB: contents API doesn't include content, use Git Blob API
+  if(!meta.sha)throw new Error('No sha returned for large file, cannot fetch via Blob API');
+  var blobUrl='https://api.github.com/repos/'+owner+'/'+repo+'/git/blobs/'+meta.sha;
   try{
-    // For public repos, don't need auth token for raw content
-    var contentRes=await fetch(meta.download_url);
-    if(!contentRes.ok)throw new Error('Download failed: '+contentRes.status);
-    var text=await contentRes.text();
-    meta.parsedData=JSON.parse(text);
+    var blobRes=await ghFetchWithProxy(blobUrl,{headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}});
+    if(!blobRes.ok){var blobErr=await blobRes.text();console.error('ghFetchFile: Blob API failed ('+blobRes.status+')',blobUrl,blobErr);throw new Error('Blob API error: '+blobRes.status);}
+    var blobData=await blobRes.json();
+    if(!blobData.content||blobData.encoding!=='base64'){console.error('ghFetchFile: Unexpected blob response',blobData);throw new Error('Blob API returned unexpected format');}
+    var decoded=atob(blobData.content);
+    meta.parsedData=JSON.parse(decoded);
     return meta;
   }catch(e){
-    console.error('Failed to download large file:',e);
+    if(e.message&&e.message.indexOf('Blob API')===0)throw e;
+    console.error('ghFetchFile: Failed to fetch large file via Blob API:',e.message,'URL:',blobUrl);
     throw new Error('Failed to download large file: '+e.message);
   }
 }
 
 async function ghWriteFile(content,sha){
   var token=ghConfig.token,owner=ghConfig.owner,repo=ghConfig.repo;
-  var body={message:'sync meal '+new Date().toISOString(),content:btoa(unescape(encodeURIComponent(JSON.stringify(content))))};
+  var jsonStr=JSON.stringify(content);
+  var encoded=btoa(unescape(encodeURIComponent(jsonStr)));
+  var sizeMB=(encoded.length/(1024*1024)).toFixed(2);
+  if(parseFloat(sizeMB)>5){console.warn('ghWriteFile: base64 content is '+sizeMB+'MB (>5MB), GitHub API limit is 100MB. Attempting write anyway.');}
+  var body={message:'sync meal '+new Date().toISOString(),content:encoded};
   if(sha)body.sha=sha;
-  var res=await ghFetchWithProxy('https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/meal.json',{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
-  if(!res.ok){var errText=await res.text();throw new Error('Write failed: '+res.status+' - '+errText);}
+  var putUrl='https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/meal.json';
+  var res=await ghFetchWithProxy(putUrl,{method:'PUT',headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json','Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!res.ok){var errText=await res.text();console.error('ghWriteFile: PUT failed ('+res.status+')',putUrl,errText);throw new Error('Write failed: '+res.status+' - '+errText);}
   var result=await res.json();
   ghSha=result.content.sha;
   return result;
@@ -779,20 +787,27 @@ async function pushToGitHub(){
   // Safety: never push empty data to overwrite cloud
   if(entries.length===0){return {skipped:true,reason:'local empty'};}
   var data={app:'漂亮饭清单',version:2,entries:entries,customTags:getCustomTags(),lastModified:Date.now(),syncedAt:new Date().toISOString()};
-  var result=await ghWriteFile(data,ghSha);
-  lastSyncTime=Date.now();
-  return result;
+  try{
+    var result=await ghWriteFile(data,ghSha);
+    lastSyncTime=Date.now();
+    return result;
+  }catch(e){
+    console.error('pushToGitHub: Failed to write to GitHub:',e.message);
+    throw e;
+  }
 }
 
-async function pullFromGitHub(){
-  var fileData=await ghFetchFile();
+async function pullFromGitHub(cachedFileData){
+  var fileData=cachedFileData||await ghFetchFile();
   if(!fileData)return 0;
   ghSha=fileData.sha;
   // Use pre-parsed data if available, otherwise parse from content
   var remote=fileData.parsedData;
   if(!remote){
-    var json=decodeURIComponent(escape(atob(fileData.content)));
-    remote=JSON.parse(json);
+    try{
+      var json=decodeURIComponent(escape(atob(fileData.content)));
+      remote=JSON.parse(json);
+    }catch(e){console.error('pullFromGitHub: Failed to parse file content:',e);throw new Error('Failed to parse cloud data');}
   }
   var remoteEntries=remote.entries||[];
   if(remote.customTags&&Array.isArray(remote.customTags)){remote.customTags.forEach(function(t){addCustomTag(t);});}
@@ -828,8 +843,8 @@ async function autoSync(){
       }
       remoteCount=(parsed.entries||[]).length;
     }
-    // Always pull cloud data
-    await pullFromGitHub();
+    // Always pull cloud data, pass cached remote to avoid redundant fetch
+    await pullFromGitHub(remote);
     // Only push if local has meaningful data; never overwrite cloud with empty/less data
     if(localCount===0||remoteCount>localCount){
       // Cloud has more data or local was empty → don't push
@@ -837,11 +852,11 @@ async function autoSync(){
       await pushToGitHub();
     }
     updateSyncTime();
-    updateSyncBadge('synced');
+    updateSyncBadge('ok','✅ 已同步');
     syncInProgress=false;
     return true;
   }
-  catch(e){console.error('Sync error:',e);updateSyncBadge('error');syncInProgress=false;return false;}
+  catch(e){console.error('autoSync error:',e);updateSyncBadge('error');syncInProgress=false;return false;}
 }
 
 function scheduleAutoSync(){
