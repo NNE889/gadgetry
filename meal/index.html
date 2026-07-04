@@ -769,7 +769,9 @@ async function ghFetchFile(){
 async function ghWriteFile(content,sha){
   var token=ghConfig.token,owner=ghConfig.owner,repo=ghConfig.repo;
   var jsonStr=JSON.stringify(content);
-  var encoded=btoa(String.fromCharCode.apply(null,new TextEncoder().encode(jsonStr)));
+  var bytes=new TextEncoder().encode(jsonStr);
+  var binary='';for(var i=0;i<bytes.length;i+=8192){binary+=String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+8192,bytes.length)));}
+  var encoded=btoa(binary);
   var sizeMB=(encoded.length/(1024*1024)).toFixed(2);
   if(parseFloat(sizeMB)>5){console.warn('ghWriteFile: base64 content is '+sizeMB+'MB (>5MB), GitHub API limit is 100MB. Attempting write anyway.');}
   var body={message:'sync meal '+new Date().toISOString(),content:encoded};
